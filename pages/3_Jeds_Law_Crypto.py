@@ -141,4 +141,4 @@ else:
     st.warning("Walang data na nakuha. Baka tulog ang Yahoo Finance.")
 
 st.markdown("---")
-st.subheader("🍺 BENDER'S FINAL WORD: CLASS DISMISSED. TRABAHO NA.")
+st.subheader("🍺 BENDER'S FINAL WORD: CLASS DISMISSED. TRABAHO NA. POTA. To the Moon!!!")
