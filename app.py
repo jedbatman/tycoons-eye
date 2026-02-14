@@ -138,7 +138,22 @@ for x_pos in stirrup_x:
         sz = [x_pos] * 5
     fig.add_trace(go.Scatter3d(x=sx, y=sy, z=sz, mode='lines', line=dict(color=stirrup_color, width=4), showlegend=False, name="Anilyo", hovertemplate=f"<b>Stirrup (Anilyo)</b><br>Size: {Stirrup_Size_mm}mm Ø<br>Spacing: {current_spacing_text}<extra></extra>"))
 
-fig.update_layout(scene=dict(aspectmode='data'), margin=dict(l=0, r=0, b=0, t=0))
+# --- ANG BAGONG EMBEDDED TITLE PATCH ---
+if Element_Type == "Beam":
+    title_text = f"BEAM ASSEMBLY (Span: {Length_or_Span_mm}mm)"
+else:
+    title_text = f"COLUMN ASSEMBLY (Height: {Length_or_Span_mm}mm)"
+
+if status == "PASSED":
+    status_display = f"<span style='color:green'>PASSED ✅ Walang Honeycomb! Kasya ang {Aggregate_Type}.</span>"
+else:
+    status_display = f"<span style='color:red'>FAILED ❌ DANGER! Mag-aampaw! Hindi kasya ang {Aggregate_Type}.</span>"
+
+fig.update_layout(
+    title=f"<b>{title_text}</b><br>{status_display}<br>Pinakamasikip na Uwang: {tightest_space:.1f}mm",
+    scene=dict(aspectmode='data'), 
+    margin=dict(l=0, r=0, b=0, t=80) 
+)
 
 # =========================================================
 # THE TYCOON QUIRK: DUAL-VIEW DASHBOARD 📺📺
