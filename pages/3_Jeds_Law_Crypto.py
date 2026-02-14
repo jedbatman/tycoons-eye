@@ -142,3 +142,116 @@ else:
 
 st.markdown("---")
 st.subheader("🍺 BENDER'S FINAL WORD: CLASS DISMISSED. TRABAHO NA. POTA. To the Moon!!!")
+
+# ==============================================================================
+# 🏟️ BENDER'S BACKTEST BATTLE ROYALE (3-Year KTO vs HODL) ADDON 🏟️
+# ==============================================================================
+import matplotlib.pyplot as plt
+import warnings
+
+warnings.filterwarnings('ignore')
+
+st.markdown("---")
+st.subheader("📊 BENDER'S BACKTEST BATTLE ROYALE (3-Year KTO vs HODL)")
+
+# Gumamit tayo ng Expander para hindi nakaharang sa buong screen pagkabukas
+with st.expander("Tignan ang Backtest Graphs & Report (Pindutin para bumuka)", expanded=False):
+    st.write("🤖 *Fetching historical data and computing KTO backtest mathematics...*")
+    
+    # --- CONFIG ---
+    BT_TICKERS = ["BTC-USD", "ETH-USD", "SOL-USD", "ADA-USD"]
+    PERIOD = "3y"
+    TARGET_VOL = 0.50
+    FEE_RATE = 0.0010
+
+    plt.style.use('dark_background')
+    fig, axes = plt.subplots(2, 2, figsize=(16, 10))
+    fig.suptitle("Kinetic Trend Oscillator (KTO V2) vs. Buy & Hold", fontsize=16, fontweight='bold', color='white')
+    axes = axes.flatten()
+
+    bt_results = []
+    
+    with st.spinner("Simulating 3 years of Warlord trades..."):
+        for idx, ticker in enumerate(BT_TICKERS):
+            # Fetch Data
+            df = yf.download(ticker, period=PERIOD, interval="1d", progress=False, auto_adjust=True)
+            if df.empty: continue
+            if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
+            
+            df = df[['Close']].copy()
+            df['Ret'] = df['Close'].pct_change().fillna(0)
+            
+            # The Mathematics
+            df['SMA_50'] = df['Close'].rolling(50).mean()
+            df['Std_50'] = df['Close'].rolling(50).std()
+            df['Z_50'] = (df['Close'] - df['SMA_50']) / (df['Std_50'] + 1e-9)
+            df['Ann_Vol'] = df['Ret'].rolling(20).std() * np.sqrt(365)
+            df['ROC_14'] = df['Close'].pct_change(14).fillna(0)
+            df['KTO'] = (df['ROC_14'] / (df['Ann_Vol'] + 1e-9)) * np.exp(-df['Z_50']) * 10
+            df['KTO_Smooth'] = df['KTO'].rolling(3).mean()
+            
+            # Signal Gen
+            df['Signal'] = 0.0
+            df.loc[df['KTO_Smooth'] > 0.05, 'Signal'] = 1   
+            df.loc[df['KTO_Smooth'] < -0.05, 'Signal'] = 0   
+            df['Signal'] = df['Signal'].ffill() 
+            
+            # Risk & Exec
+            df['Vol_Weight'] = TARGET_VOL / (df['Ann_Vol'] + 1e-9)
+            df['Vol_Weight'] = df['Vol_Weight'].clip(0, 1.5)
+            df['Target_Position'] = df['Signal'] * df['Vol_Weight']
+            
+            df['Position'] = df['Target_Position'].shift(1).fillna(0) 
+            df['Turnover'] = df['Position'].diff().abs().fillna(0)
+            df['Fees'] = df['Turnover'] * FEE_RATE
+            df['Strat_Ret'] = (df['Position'] * df['Ret']) - df['Fees']
+            
+            df_clean = df.dropna().copy()
+            if len(df_clean) == 0: continue
+                
+            df_clean['Cum_Strat'] = (1 + df_clean['Strat_Ret']).cumprod()
+            df_clean['Cum_Hold'] = (1 + df_clean['Ret']).cumprod()
+            
+            # KPIs
+            algo_roi = (df_clean['Cum_Strat'].iloc[-1] - 1) * 100
+            hold_roi = (df_clean['Cum_Hold'].iloc[-1] - 1) * 100
+            strat_vol = df_clean['Strat_Ret'].std() * np.sqrt(365)
+            sharpe = (df_clean['Strat_Ret'].mean() * 365) / (strat_vol + 1e-9)
+            roll_max = df_clean['Cum_Strat'].cummax()
+            max_dd = ((df_clean['Cum_Strat'] / roll_max) - 1).min() * 100
+            
+            bt_results.append({
+                "Asset": ticker.replace("-USD", ""),
+                "Algo ROI (%)": f"{algo_roi:.1f}%",
+                "HODL ROI (%)": f"{hold_roi:.1f}%",
+                "Sharpe Ratio": f"{sharpe:.2f}",
+                "Max Drawdown (%)": f"{max_dd:.1f}%"
+            })
+            
+            # Plotting (Hindi ko ginalaw ang aesthetics mo)
+            ax = axes[idx]
+            ax.plot(df_clean.index, df_clean['Cum_Strat'], label='KTO Protocol (Fixed)', color='#00ffcc', linewidth=2)
+            ax.plot(df_clean.index, df_clean['Cum_Hold'], label='Buy & Hold', color='#777777', linewidth=1.5, alpha=0.8)
+            
+            ax.fill_between(df_clean.index, df_clean['Cum_Strat'].min(), df_clean['Cum_Strat'].max(), 
+                            where=df_clean['Position'] > 0, 
+                            color='#00ffcc', alpha=0.05)
+            
+            ax.set_title(f"{ticker.replace('-USD', '')}", fontsize=12, fontweight='bold', color='white')
+            ax.legend(loc='upper left', frameon=False, labelcolor='white')
+            ax.grid(True, color='#333333', linestyle='--', alpha=0.5)
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.set_ylabel("Equity Multiplier")
+
+    plt.tight_layout()
+    plt.subplots_adjust(top=0.92)
+    
+    # ETO ANG SIKRETO NG STREAMLIT (Pagpapalabas ng drawing sa web)
+    st.pyplot(fig)
+    
+    st.markdown("### 🎯 3-YEAR BACKTEST REPORT")
+    if bt_results:
+        # Gamitin natin ulit ang color coding para sa table mo
+        df_bt = pd.DataFrame(bt_results)
+        st.dataframe(df_bt, use_container_width=True)
