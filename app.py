@@ -92,17 +92,57 @@ fig.add_trace(go.Mesh3d(
     color='lightblue', opacity=0.15, name='Concrete Form', hoverinfo='none'
 ))
 
-def draw_bars(qty, size, z_pos, label, color):
+# --- ANG BAGONG SMART DRAWING FUNCTION ---
+def draw_bars(qty, size, z_pos, label, color, bundle_type="None"):
+    # Offset para sa visual separation ng bundled bars
+    off = size / 2.5 
+
     for i in range(qty):
-        y_pos = Concrete_Cover_mm + Stirrup_Size_mm + (size/2) + i * ((inner_width - size)/(qty - 1)) if qty > 1 else W / 2
-        if Element_Type == "Beam":
-            x_coords, y_coords, z_coords = [0, L], [y_pos, y_pos], [z_pos, z_pos]
-        else: 
-            x_coords, y_coords, z_coords = [y_pos, y_pos], [z_pos, z_pos], [0, L]
-        fig.add_trace(go.Scatter3d(
-            x=x_coords, y=y_coords, z=z_coords, mode='lines', line=dict(color=color, width=7), name=f"{label} ({size}mm Ø)",
-            hovertemplate=f"<b>{label}</b><br>Size: {size}mm Ø<br>Spacing: {tightest_space:.1f}mm gap<extra></extra>"
-        ))
+        # 1. Find Center Position
+        if qty > 1:
+            y_center = Concrete_Cover_mm + Stirrup_Size_mm + (size/2) + i * ((inner_width - size)/(qty - 1))
+        else:
+            y_center = W / 2
+
+        # 2. Check if Corner Position (Dito lang may bundle)
+        is_corner = (i == 0 or i == qty - 1)
+        current_bundle = bundle_type if is_corner else "None"
+
+        # 3. Define Sub-Bar Coordinates based on Bundle Type
+        sub_bars_coords = []
+        if current_bundle == "3-Bar Bundle":
+            # Triangle Formation
+            sub_bars_coords = [
+                (y_center, z_pos + off),        # Top-Center
+                (y_center - off, z_pos - off),  # Bottom-Left
+                (y_center + off, z_pos - off)   # Bottom-Right
+            ]
+        elif current_bundle == "2-Bar Bundle":
+            # Side-by-Side Formation
+            sub_bars_coords = [
+                (y_center - off, z_pos),
+                (y_center + off, z_pos)
+            ]
+        else:
+            # Single Bar (Center)
+            sub_bars_coords = [(y_center, z_pos)]
+
+        # 4. Hover Text Logic (Para sa request mong specs display)
+        bundle_tag = f" [{current_bundle}]" if current_bundle != "None" else ""
+        hover_txt = f"<b>{label}{bundle_tag}</b><br>Size: {size}mm Ø<br>Spacing: {tightest_space:.1f}mm gap<extra></extra>"
+
+        # 5. Draw the actual lines
+        for y_final, z_final in sub_bars_coords:
+            if Element_Type == "Beam":
+                x_coords, y_coords, z_coords = [0, L], [y_final, y_final], [z_final, z_final]
+            else: # Column
+                x_coords, y_coords, z_coords = [y_final, y_final], [z_final, z_final], [0, L]
+
+            fig.add_trace(go.Scatter3d(
+                x=x_coords, y=y_coords, z=z_coords, mode='lines',
+                line=dict(color=color, width=7), name=f"{label} ({size}mm Ø)",
+                hovertemplate=hover_txt
+            ))
 
 # Colors
 top_color = bar_color_override if bar_color_override else "green"
@@ -113,8 +153,9 @@ extra_bot_color = bar_color_override if bar_color_override else "orange"
 # Main Bars
 top_z = D - Concrete_Cover_mm - Stirrup_Size_mm - (Top_Bars_Size_mm/2)
 bot_z = Concrete_Cover_mm + Stirrup_Size_mm + (Bottom_Bars_Size_mm/2)
-draw_bars(Top_Bars_Qty, Top_Bars_Size_mm, top_z, "Top Bar", top_color)
-draw_bars(Bottom_Bars_Qty, Bottom_Bars_Size_mm, bot_z, "Bottom Bar", bot_color)
+# --- BAGONG TAWAG NA MAY BUNDLE INFO ---
+draw_bars(Top_Bars_Qty, Top_Bars_Size_mm, top_z, "Top Bar", top_color, Top_Bundle_Type)
+draw_bars(Bottom_Bars_Qty, Bottom_Bars_Size_mm, bot_z, "Bottom Bar", bot_color, Bottom_Bundle_Type)
 
 # Extra Bars
 spacer_gap = 25
