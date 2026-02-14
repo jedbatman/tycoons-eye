@@ -148,7 +148,7 @@ st.subheader("📺 THE TYCOON'S DUAL-VIEW DASHBOARD")
 st.markdown("*I-lock ang isang screen sa Isometric View, at yung isa sa Top/Side view para walang kawala ang foreman!*")
 
 # First View
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, use_container_width=True, key="view_1")
 
 # Second View (Ang paborito mong quirk!)
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, use_container_width=True, key="view_2")
