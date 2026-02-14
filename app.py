@@ -16,13 +16,19 @@ Length_or_Span_mm = st.sidebar.number_input("Length/Span (mm)", value=4000)
 Concrete_Cover_mm = st.sidebar.number_input("Concrete Cover (mm)", value=40)
 
 st.sidebar.header("2. MAIN BARS")
-Top_Bars_Qty = st.sidebar.slider("Top Bars Qty (Total Positions)", 2, 10, 3)
-Top_Bars_Size_mm = st.sidebar.number_input("Top Bars Size (mm)", value=20)
-Top_Bundle_Type = st.sidebar.selectbox("Top Corner Bundles?", ["None", "2-Bar Bundle", "3-Bar Bundle"])
+# TOP BARS UI
+Top_Bars_Qty = st.sidebar.slider("Top Bars Qty (Total Positions)", 2, 10, 5)
+Top_Bars_Size_mm = st.sidebar.number_input("Top Bars Size (mm)", value=20, key="t_size")
+Top_Bundle_Type = st.sidebar.selectbox("Top Bundle Type", ["None", "2-Bar Bundle", "3-Bar Bundle"])
+top_pos_list = [f"Pos {i+1}" for i in range(Top_Bars_Qty)]
+Top_Bundle_Locs = st.sidebar.multiselect("Alin ang naka-Bundle? (Top)", top_pos_list, default=[top_pos_list[0], top_pos_list[-1]]) if Top_Bundle_Type != "None" else []
 
-Bottom_Bars_Qty = st.sidebar.slider("Bottom Bars Qty (Total Positions)", 2, 10, 3)
-Bottom_Bars_Size_mm = st.sidebar.number_input("Bottom Bars Size (mm)", value=20)
-Bottom_Bundle_Type = st.sidebar.selectbox("Bottom Corner Bundles?", ["None", "2-Bar Bundle", "3-Bar Bundle"])
+# BOTTOM BARS UI
+Bottom_Bars_Qty = st.sidebar.slider("Bottom Bars Qty (Total Positions)", 2, 10, 5)
+Bottom_Bars_Size_mm = st.sidebar.number_input("Bottom Bars Size (mm)", value=20, key="b_size")
+Bottom_Bundle_Type = st.sidebar.selectbox("Bottom Bundle Type", ["None", "2-Bar Bundle", "3-Bar Bundle"])
+bot_pos_list = [f"Pos {i+1}" for i in range(Bottom_Bars_Qty)]
+Bottom_Bundle_Locs = st.sidebar.multiselect("Alin ang naka-Bundle? (Bot)", bot_pos_list, default=[bot_pos_list[0], bot_pos_list[-1]]) if Bottom_Bundle_Type != "None" else []"3-Bar Bundle"])
 
 st.sidebar.header("3. EXTRA LAYER BARS")
 Extra_Top_Bars_Qty = st.sidebar.slider("Extra Top Bars Qty", 0, 10, 2)
@@ -39,32 +45,45 @@ Aggregate_Type = st.sidebar.selectbox("Aggregate Size", ["3/4 inch (20mm)", "G1 
 # --- HONEYCOMB LOGIC (ANG UTAK NG AI) ---
 Gravel_Size_mm = 20 if "20mm" in Aggregate_Type else (25 if "25mm" in Aggregate_Type else 38)
 
-import math # Idagdag sa logic
+import math # Idagdag mo 'to sa itaas kung wala pa, pero pwede na rin dito.
 
 inner_width = Width_mm - (2 * Concrete_Cover_mm) - (2 * Stirrup_Size_mm)
 
-# Equivalent Diameter Logic for Top Bars
-top_n = 1 if Top_Bundle_Type == "None" else (2 if "2-Bar" in Top_Bundle_Type else 3)
-top_De = Top_Bars_Size_mm * math.sqrt(top_n)
-# Dalawang kanto ang bundled (2 * top_De), yung gitna ay single bars ((Qty - 2) * Size)
-top_total_width = (2 * top_De) + ((Top_Bars_Qty - 2) * Top_Bars_Size_mm) if Top_Bars_Qty > 1 else top_De
+# Equivalent Diameter & Clear Spacing Logic for Top Bars
+top_n = 2 if "2-Bar" in Top_Bundle_Type else (3 if "3-Bar" in Top_Bundle_Type else 1)
+top_De = Top_Bars_Size_mm * math.sqrt(top_n) if top_n > 1 else Top_Bars_Size_mm
+top_bundled_count = len(Top_Bundle_Locs)
+top_single_count = Top_Bars_Qty - top_bundled_count
+top_total_width = (top_bundled_count * top_De) + (top_single_count * Top_Bars_Size_mm)
 top_clear_space = (inner_width - top_total_width) / max(1, (Top_Bars_Qty - 1)) if Top_Bars_Qty > 1 else inner_width
 
-# Equivalent Diameter Logic for Bottom Bars
-bot_n = 1 if Bottom_Bundle_Type == "None" else (2 if "2-Bar" in Bottom_Bundle_Type else 3)
-bot_De = Bottom_Bars_Size_mm * math.sqrt(bot_n)
-bot_total_width = (2 * bot_De) + ((Bottom_Bars_Qty - 2) * Bottom_Bars_Size_mm) if Bottom_Bars_Qty > 1 else bot_De
+# Equivalent Diameter & Clear Spacing Logic for Bottom Bars
+bot_n = 2 if "2-Bar" in Bottom_Bundle_Type else (3 if "3-Bar" in Bottom_Bundle_Type else 1)
+bot_De = Bottom_Bars_Size_mm * math.sqrt(bot_n) if bot_n > 1 else Bottom_Bars_Size_mm
+bot_bundled_count = len(Bottom_Bundle_Locs)
+bot_single_count = Bottom_Bars_Qty - bot_bundled_count
+bot_total_width = (bot_bundled_count * bot_De) + (bot_single_count * Bottom_Bars_Size_mm)
 bot_clear_space = (inner_width - bot_total_width) / max(1, (Bottom_Bars_Qty - 1)) if Bottom_Bars_Qty > 1 else inner_width
 
-stirrup_clear_space = Stirrup_Spacing_Support_mm - Stirrup_Size_mm
-
+stirrup_clear_space = Stirrup_Spacing_Support_mm - Stirrup_Size_mm 
 tightest_space = min(top_clear_space, bot_clear_space, stirrup_clear_space)
-required_clearance = Gravel_Size_mm * 1.33 
+required_clearance = Gravel_Size_mm * 1.33
 
 bar_color_override = None
 stirrup_color = 'blue'
 
 st.subheader("🤖 AI DIAGNOSTICS")
+
+# AI Symmetry Checker Logic
+def check_sym(locs, qty):
+    indices = [int(loc.split(" ")[1]) for loc in locs]
+    return all((qty - i + 1) in indices for i in indices)
+
+top_sym = check_sym(Top_Bundle_Locs, Top_Bars_Qty) if Top_Bundle_Locs else True
+bot_sym = check_sym(Bottom_Bundle_Locs, Bottom_Bars_Qty) if Bottom_Bundle_Locs else True
+
+if not top_sym or not bot_sym:
+    st.warning("⚠️ WARLORD WARNING: Asymmetrical ang latag ng Bundled Bars mo! Baka pumilipit (Torsion) ang biga pag lumindol. I-balanse mo ang kaliwa at kanan!")
 if tightest_space >= required_clearance:
     st.success(f"PASSED ✅ KASYA ANG {Aggregate_Type}! Walang Honeycomb. Pinakamasikip na uwang ay {tightest_space:.1f}mm.")
     status = "PASSED"
@@ -93,16 +112,20 @@ fig.add_trace(go.Mesh3d(
 ))
 
 # --- ANG BAGONG SMART DRAWING FUNCTION ---
-def draw_bars(qty, size, z_pos, label, color, bundle_type="None"):
-    # Offset para sa visual separation ng bundled bars
+def draw_bars(qty, size, z_pos, label, color, bundle_type="None", bundled_locs=[]):
     off = size / 2.5 
 
     for i in range(qty):
-        # 1. Find Center Position
         if qty > 1:
             y_center = Concrete_Cover_mm + Stirrup_Size_mm + (size/2) + i * ((inner_width - size)/(qty - 1))
         else:
             y_center = W / 2
+
+        # Check kung kasama ang position na ito sa piniling i-bundle
+        pos_label = f"Pos {i+1}"
+        current_bundle = bundle_type if pos_label in bundled_locs else "None"
+        
+        # ... (YUNG REST NG FUNCTION AY SAME LANG KANINA, wag na baguhin) ...
 
         # 2. Check if Corner Position (Dito lang may bundle)
         is_corner = (i == 0 or i == qty - 1)
@@ -153,9 +176,9 @@ extra_bot_color = bar_color_override if bar_color_override else "orange"
 # Main Bars
 top_z = D - Concrete_Cover_mm - Stirrup_Size_mm - (Top_Bars_Size_mm/2)
 bot_z = Concrete_Cover_mm + Stirrup_Size_mm + (Bottom_Bars_Size_mm/2)
-# --- BAGONG TAWAG NA MAY BUNDLE INFO ---
-draw_bars(Top_Bars_Qty, Top_Bars_Size_mm, top_z, "Top Bar", top_color, Top_Bundle_Type)
-draw_bars(Bottom_Bars_Qty, Bottom_Bars_Size_mm, bot_z, "Bottom Bar", bot_color, Bottom_Bundle_Type)
+
+draw_bars(Top_Bars_Qty, Top_Bars_Size_mm, top_z, "Top Bar", top_color, Top_Bundle_Type, Top_Bundle_Locs)
+draw_bars(Bottom_Bars_Qty, Bottom_Bars_Size_mm, bot_z, "Bottom Bar", bot_color, Bottom_Bundle_Type, Bottom_Bundle_Locs)
 
 # Extra Bars
 spacer_gap = 25
