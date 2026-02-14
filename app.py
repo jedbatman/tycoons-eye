@@ -16,10 +16,13 @@ Length_or_Span_mm = st.sidebar.number_input("Length/Span (mm)", value=4000)
 Concrete_Cover_mm = st.sidebar.number_input("Concrete Cover (mm)", value=40)
 
 st.sidebar.header("2. MAIN BARS")
-Top_Bars_Qty = st.sidebar.slider("Top Bars Qty", 2, 10, 3)
+Top_Bars_Qty = st.sidebar.slider("Top Bars Qty (Total Positions)", 2, 10, 3)
 Top_Bars_Size_mm = st.sidebar.number_input("Top Bars Size (mm)", value=20)
-Bottom_Bars_Qty = st.sidebar.slider("Bottom Bars Qty", 2, 10, 3)
+Top_Bundle_Type = st.sidebar.selectbox("Top Corner Bundles?", ["None", "2-Bar Bundle", "3-Bar Bundle"])
+
+Bottom_Bars_Qty = st.sidebar.slider("Bottom Bars Qty (Total Positions)", 2, 10, 3)
 Bottom_Bars_Size_mm = st.sidebar.number_input("Bottom Bars Size (mm)", value=20)
+Bottom_Bundle_Type = st.sidebar.selectbox("Bottom Corner Bundles?", ["None", "2-Bar Bundle", "3-Bar Bundle"])
 
 st.sidebar.header("3. EXTRA LAYER BARS")
 Extra_Top_Bars_Qty = st.sidebar.slider("Extra Top Bars Qty", 0, 10, 2)
@@ -36,10 +39,24 @@ Aggregate_Type = st.sidebar.selectbox("Aggregate Size", ["3/4 inch (20mm)", "G1 
 # --- HONEYCOMB LOGIC (ANG UTAK NG AI) ---
 Gravel_Size_mm = 20 if "20mm" in Aggregate_Type else (25 if "25mm" in Aggregate_Type else 38)
 
+import math # Idagdag sa logic
+
 inner_width = Width_mm - (2 * Concrete_Cover_mm) - (2 * Stirrup_Size_mm)
-top_clear_space = (inner_width - (Top_Bars_Qty * Top_Bars_Size_mm)) / max(1, (Top_Bars_Qty - 1)) if Top_Bars_Qty > 1 else inner_width
-bot_clear_space = (inner_width - (Bottom_Bars_Qty * Bottom_Bars_Size_mm)) / max(1, (Bottom_Bars_Qty - 1)) if Bottom_Bars_Qty > 1 else inner_width
-stirrup_clear_space = Stirrup_Spacing_Support_mm - Stirrup_Size_mm 
+
+# Equivalent Diameter Logic for Top Bars
+top_n = 1 if Top_Bundle_Type == "None" else (2 if "2-Bar" in Top_Bundle_Type else 3)
+top_De = Top_Bars_Size_mm * math.sqrt(top_n)
+# Dalawang kanto ang bundled (2 * top_De), yung gitna ay single bars ((Qty - 2) * Size)
+top_total_width = (2 * top_De) + ((Top_Bars_Qty - 2) * Top_Bars_Size_mm) if Top_Bars_Qty > 1 else top_De
+top_clear_space = (inner_width - top_total_width) / max(1, (Top_Bars_Qty - 1)) if Top_Bars_Qty > 1 else inner_width
+
+# Equivalent Diameter Logic for Bottom Bars
+bot_n = 1 if Bottom_Bundle_Type == "None" else (2 if "2-Bar" in Bottom_Bundle_Type else 3)
+bot_De = Bottom_Bars_Size_mm * math.sqrt(bot_n)
+bot_total_width = (2 * bot_De) + ((Bottom_Bars_Qty - 2) * Bottom_Bars_Size_mm) if Bottom_Bars_Qty > 1 else bot_De
+bot_clear_space = (inner_width - bot_total_width) / max(1, (Bottom_Bars_Qty - 1)) if Bottom_Bars_Qty > 1 else inner_width
+
+stirrup_clear_space = Stirrup_Spacing_Support_mm - Stirrup_Size_mm
 
 tightest_space = min(top_clear_space, bot_clear_space, stirrup_clear_space)
 required_clearance = Gravel_Size_mm * 1.33 
