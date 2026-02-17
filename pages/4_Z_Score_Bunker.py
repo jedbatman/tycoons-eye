@@ -122,7 +122,7 @@ with st.expander("Tignan ang Real-World Backtest Graphs & Performance Report", e
     
     START_DATE = "2021-01-01"
     INITIAL_CAP_BT = 50000.0
-    FEE_RATE = 0.0010 # Binance Trading Fee (0.1%)
+    FEE_RATE = 0.0050 # PDAX Trading Fee & Spread Estimate (0.5%)
 
     plt.style.use('dark_background')
     fig, axes = plt.subplots(2, 2, figsize=(16, 10))
