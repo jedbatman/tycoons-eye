@@ -13,7 +13,7 @@ st.set_page_config(page_title="Z-Score Bunker", layout="wide")
 
 st.title("🛡️ MODULE 4: THE Z-SCORE BUNKER (REALITY PATCH)")
 st.markdown("**Powered by Tycoon Jed Racho & Bender AI** | The Shock-Absorber Protocol")
-st.info("💡 **LOGIC:** Ang makinang ito ay isang Warlord Momentum Engine. Nakakabit sa MA200 Bunker. Ngayon, may kasama nang 0.1% Trading Fees at Max Leverage Cap (1.5x) para sa totoong Warlord simulation.")
+st.info("💡 **LOGIC:** Ang makinang ito ay isang Warlord Momentum Engine. Nakakabit sa MA200 Bunker. Ngayon, may kasama nang 0.5% Trading Fees at Max Leverage Cap (1.5x) para sa totoong Warlord simulation.")
 
 # --- PATCH: BENDER'S CHEAT SHEET (Added Here) ---
 with st.expander("📖 BENDER'S CHEAT SHEET (Paano Basahin 'To)", expanded=True):
