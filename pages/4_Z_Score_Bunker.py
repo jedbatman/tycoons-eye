@@ -226,18 +226,19 @@ with st.expander("Tignan ang Real-World Backtest Graphs & Performance Report", e
             ann_ret = (df_clean['Cum_Strat'].iloc[-1]) ** (1 / years_in_market) - 1 if years_in_market > 0 else 0
             calmar = ann_ret / (abs(max_dd) / 100) if max_dd != 0 else np.nan
 
-            # 4. Ang Bagong Dashboard Output
+            # 4. Ang Bagong Dashboard Output (WITH SHARPE RATIO ⚡)
             bt_results.append({
                 "Asset": ticker.replace("-USD", ""),
                 "Algo ROI": f"{algo_roi:.1f}%",
                 "HODL ROI": f"{hold_roi:.1f}%",
                 "Max DD": f"{max_dd:.1f}%",
+                "Sharpe": f"{sharpe:.2f}", # --- BINALIK NATIN ANG SHARPE RATIO PRE! ---
                 "Calmar": f"{calmar:.2f}",
                 "Win Rate": f"{win_rate:.1f}%",
                 "Profit Fctr": f"{profit_factor:.2f}",
                 "Avg Win": f"+{avg_win:.1f}%",
                 "Avg Loss": f"{avg_loss:.1f}%",
-                "Max Lose Streak": int(max_losing_streak), # --- PATCH 2B: IDINAGDAG NA COLUMN ---
+                "Max Lose Streak": int(max_losing_streak),
                 "Total Trades": total_trades,
                 "Exposure": f"{exposure_pct:.1f}%"
             })
