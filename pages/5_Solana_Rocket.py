@@ -114,6 +114,8 @@ with st.expander("Tignan ang Backtest Graph & Performance Report (with Binance F
 
     plt.style.use('dark_background')
     fig, ax = plt.subplots(figsize=(14, 7))
+    # --- PATCH 1: CANVAS PARA SA UNDERWATER DRAWDOWN ---
+    fig_dd, ax_dd = plt.subplots(figsize=(14, 4))
     
     with st.spinner("Simulating Solana trades from 2021 to Present..."):
         df_bt = yf.download(TICKER, start=START_DATE, progress=False, auto_adjust=True)
@@ -194,17 +196,28 @@ with st.expander("Tignan ang Backtest Graph & Performance Report (with Binance F
         ann_ret = (df_clean['Cum_Strat'].iloc[-1]) ** (1 / years_in_market) - 1 if years_in_market > 0 else 0
         calmar = ann_ret / (abs(max_dd) / 100) if max_dd != 0 else np.nan
 
-        # 4. Ang Bagong Dashboard Output
+        # --- PATCH 2: UPDATE KPIs WITH SHARPE AND STREAK ---
+        # MAX LOSING STREAK LOGIC
+        if not in_market_df.empty:
+            is_loss = (trade_returns <= 0).astype(int)
+            streak = is_loss.groupby((is_loss != is_loss.shift()).cumsum()).cumsum()
+            max_losing_streak = streak.max() if not streak.empty else 0
+        else:
+            max_losing_streak = 0
+            
+        # 4. Ang Bagong Dashboard Output (WITH SHARPE & STREAK ⚡)
         bt_results = [{
             "Asset": "SOLANA ROCKET",
             "Algo ROI": f"{algo_roi:.1f}%",
             "HODL ROI": f"{hold_roi:.1f}%",
             "Max DD": f"{max_dd:.1f}%",
+            "Sharpe": f"{sharpe:.2f}",
             "Calmar": f"{calmar:.2f}",
             "Win Rate": f"{win_rate:.1f}%",
             "Profit Fctr": f"{profit_factor:.2f}",
             "Avg Win": f"+{avg_win:.1f}%",
             "Avg Loss": f"{avg_loss:.1f}%",
+            "Max Lose Streak": int(max_losing_streak),
             "Total Trades": total_trades,
             "Exposure": f"{exposure_pct:.1f}%"
         }]
@@ -219,8 +232,23 @@ with st.expander("Tignan ang Backtest Graph & Performance Report (with Binance F
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
         ax.set_ylabel("Equity Multiplier")
+        # --- PATCH 3: UNDERWATER DRAWDOWN PLOTTING ---
+        drawdown_series = ((df_clean['Cum_Strat'] / roll_max) - 1) * 100
+        ax_dd.fill_between(df_clean.index, drawdown_series, 0, color='#ff4d4d', alpha=0.3)
+        ax_dd.plot(df_clean.index, drawdown_series, color='#ff4d4d', linewidth=1.2)
+        ax_dd.set_title("🌊 UNDERWATER DRAWDOWN (Ang Sukat ng Baha)", fontsize=12, fontweight='bold', color='#ff4d4d')
+        ax_dd.grid(True, color='#333333', linestyle='--', alpha=0.5)
+        ax_dd.spines['top'].set_visible(False)
+        ax_dd.spines['right'].set_visible(False)
+        ax_dd.set_ylabel("Drawdown (%)")
 
+    # --- PATCH 4: DISPLAY BOTH GRAPHS ---
+    plt.tight_layout()
+    fig_dd.tight_layout()
+    
     st.pyplot(fig)
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.pyplot(fig_dd)
     
     st.markdown("### 🏆 THE OVERDRIVE REPORT CARD")
     st.dataframe(pd.DataFrame(bt_results), use_container_width=True)
