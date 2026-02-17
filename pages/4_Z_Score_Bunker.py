@@ -14,6 +14,31 @@ st.set_page_config(page_title="Z-Score Bunker", layout="wide")
 st.title("🛡️ MODULE 4: THE Z-SCORE BUNKER (REALITY PATCH)")
 st.markdown("**Powered by Tycoon Jed Racho & Bender AI** | The Shock-Absorber Protocol")
 st.info("💡 **LOGIC:** Ang makinang ito ay isang Warlord Momentum Engine. Nakakabit sa MA200 Bunker. Ngayon, may kasama nang 0.1% Trading Fees at Max Leverage Cap (1.5x) para sa totoong Warlord simulation.")
+
+# --- PATCH: BENDER'S CHEAT SHEET (Added Here) ---
+with st.expander("📖 BENDER'S CHEAT SHEET (Paano Basahin 'To)", expanded=True):
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.markdown("### 1. MA200 (The Floor)")
+        st.caption("Ang Sahig ng Market.")
+        st.write("📉 **Ilalim:** Cash is King.")
+        st.write("📈 **Ibabaw:** Party Time.")
+    with col2:
+        st.markdown("### 2. DIST % (The Dive)")
+        st.caption("Layo mula sa MA200.")
+        st.write("🟥 **Negative:** Nasa ilalim ng tubig.")
+        st.write("🟩 **Positive:** Nasa himpapawid.")
+    with col3:
+        st.markdown("### 3. RSI (The Price)")
+        st.caption("Mura o Mahal?")
+        st.write("🛍️ **< 30:** SALE (Mura).")
+        st.write("💸 **> 70:** SCAM (Mahal).")
+    with col4:
+        st.markdown("### 4. Z-SCORE (The Force)")
+        st.caption("Ang Bwelo ng Trend.")
+        st.write("🚀 **Positive:** Paakyat.")
+        st.write("💤 **Negative:** Pahinga/Bagsak.")
+
 st.markdown("---")
 
 # --- CONFIGURATION ---
@@ -40,8 +65,25 @@ with st.spinner('🤖 Bender is scanning the Z-Score Matrix...'):
             current_price = float(close.iloc[-1])
             
             # Z-Score Math
+            # --- MATH INDICATORS ---
             ma_200 = close.rolling(200).mean()
             ma_50 = close.rolling(50).mean()
+            
+            # PATCH: DISTANCE % FROM MA200
+            ma200_val = float(ma_200.iloc[-1])
+            dist_pct = ((current_price - ma200_val) / ma200_val) * 100
+
+            # PATCH: RSI CALCULATION (14-Day)
+            delta = close.diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+            rs = gain / loss
+            rsi = 100 - (100 / (1 + rs))
+            rsi_val = float(rsi.iloc[-1])
+
+            # Z-Score Math (UNCHANGED)
+            trend_diff = np.log(close / ma_50)
+            # ... (tuloy ang dating code hanggang sa allocation computation) ...
             
             trend_diff = np.log(close / ma_50)
             z_score = (trend_diff - trend_diff.rolling(120).mean()) / (trend_diff.rolling(120).std() + 1e-9)
@@ -87,11 +129,13 @@ with st.spinner('🤖 Bender is scanning the Z-Score Matrix...'):
             live_results.append({
                 "COIN": ticker.replace("-USD", ""),
                 "PRICE ($)": f"${current_price:,.2f}",
-                "MA200 ($)": f"${float(ma_200.iloc[-1]):,.2f}",
+                "MA200 ($)": f"${ma200_val:,.2f}",
+                "DIST %": f"{dist_pct:.2f}%",    # ADDED
+                "RSI": round(rsi_val, 2),        # ADDED
                 "Z-SCORE": round(float(z_score.iloc[-1]), 2),
-                "LEVERAGE (MAX 1.5x)": round(final_lev, 2),
+                "LEV (1.5x)": round(final_lev, 2),
                 "ACTION 📢": action,
-                "SUGGESTED ALLOCATION (₱)": f"₱{allocation:,.2f}"
+                "ALLOCATION (₱)": f"₱{allocation:,.2f}"
             })
             
         except Exception as e:
@@ -100,17 +144,41 @@ with st.spinner('🤖 Bender is scanning the Z-Score Matrix...'):
     if live_results:
         df_live = pd.DataFrame(live_results)
         
-        def color_zscore(val):
-            if isinstance(val, str):
-                if "🚀" in val or "✅" in val: return 'color: #00ffcc'
-                if "⛔" in val: return 'color: #ff4d4d'
-                if "⚠️" in val: return 'color: #ffcc00'
-            return ''
+        # --- STYLING LOGIC FOR COLORS ---
+        def style_dataframe(row):
+            styles = [''] * len(row)
             
-        st.dataframe(df_live.style.map(color_zscore), use_container_width=True)
+            # Action Colors (Column 7 usually, adjust based on order)
+            # COIN=0, PRICE=1, MA200=2, DIST=3, RSI=4, Z=5, LEV=6, ACTION=7, ALLOC=8
+            
+            if "🚀" in str(row["ACTION 📢"]) or "✅" in str(row["ACTION 📢"]):
+                styles[7] = 'color: #00ffcc; font-weight: bold;' 
+            elif "⛔" in str(row["ACTION 📢"]):
+                styles[7] = 'color: #ff4d4d; font-weight: bold;'
+            
+            # Dist % Colors (Column 3)
+            try:
+                dist_val = float(row["DIST %"].replace('%',''))
+                if dist_val < 0:
+                    styles[3] = 'color: #ff4d4d;' # Red underwater
+                else:
+                    styles[3] = 'color: #00ffcc;' # Green above
+            except: pass
+            
+            # RSI Colors (Column 4)
+            try:
+                rsi_val = float(row["RSI"])
+                if rsi_val < 30:
+                    styles[4] = 'color: #00ffcc; font-weight: bold;' # Cheap
+                elif rsi_val > 70:
+                    styles[4] = 'color: #ff4d4d; font-weight: bold;' # Expensive
+            except: pass
+                
+            return styles
+            
+        st.dataframe(df_live.style.apply(style_dataframe, axis=1), use_container_width=True)
     else:
         st.error("Market data unavailable.")
-
 # ==========================================
 # 2. THE 3-YEAR BACKTEST ENGINE
 # ==========================================
