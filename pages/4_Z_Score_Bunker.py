@@ -129,6 +129,11 @@ with st.expander("Tignan ang Real-World Backtest Graphs & Performance Report", e
     fig.suptitle("Patched Z-Score Engine vs. Buy & Hold (3 Years)", fontsize=16, fontweight='bold', color='white')
     axes = axes.flatten()
 
+    # --- PATCH 1: CANVAS PARA SA UNDERWATER DRAWDOWN ---
+    fig_dd, axes_dd = plt.subplots(2, 2, figsize=(16, 6))
+    fig_dd.suptitle("🌊 UNDERWATER DRAWDOWN (Ang Sukat ng Baha)", fontsize=16, fontweight='bold', color='#ff4d4d')
+    axes_dd = axes_dd.flatten()
+
     bt_results = []
     
     with st.spinner("Simulating trades from 2021 to Present with Fees..."):
@@ -208,8 +213,13 @@ with st.expander("Tignan ang Real-World Backtest Graphs & Performance Report", e
                 gross_profit = winning_trades.sum()
                 gross_loss = abs(losing_trades.sum())
                 profit_factor = (gross_profit / gross_loss) if gross_loss > 0 else np.nan
+                
+                # --- PATCH 2A: MAX LOSING STREAK LOGIC ---
+                is_loss = (trade_returns <= 0).astype(int)
+                streak = is_loss.groupby((is_loss != is_loss.shift()).cumsum()).cumsum()
+                max_losing_streak = streak.max() if not streak.empty else 0
             else:
-                total_trades = win_rate = avg_win = avg_loss = profit_factor = 0
+                total_trades = win_rate = avg_win = avg_loss = profit_factor = max_losing_streak = 0
                 
             # 3. Calmar Ratio (Annualized Return / Max Drawdown)
             years_in_market = total_days / 365.25
@@ -227,6 +237,7 @@ with st.expander("Tignan ang Real-World Backtest Graphs & Performance Report", e
                 "Profit Fctr": f"{profit_factor:.2f}",
                 "Avg Win": f"+{avg_win:.1f}%",
                 "Avg Loss": f"{avg_loss:.1f}%",
+                "Max Lose Streak": int(max_losing_streak), # --- PATCH 2B: IDINAGDAG NA COLUMN ---
                 "Total Trades": total_trades,
                 "Exposure": f"{exposure_pct:.1f}%"
             })
@@ -242,11 +253,27 @@ with st.expander("Tignan ang Real-World Backtest Graphs & Performance Report", e
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
             ax.set_ylabel("Equity Multiplier")
+            
+            # --- PATCH 3A: DRAWDOWN PLOTTING ---
+            drawdown_series = ((df_clean['Cum_Strat'] / roll_max) - 1) * 100
+            ax_dd = axes_dd[idx]
+            ax_dd.fill_between(df_clean.index, drawdown_series, 0, color='#ff4d4d', alpha=0.3)
+            ax_dd.plot(df_clean.index, drawdown_series, color='#ff4d4d', linewidth=1.2)
+            ax_dd.set_title(f"{ticker.replace('-USD', '')} Drawdown %", fontsize=11, color='white')
+            ax_dd.grid(True, color='#333333', linestyle='--', alpha=0.5)
+            ax_dd.spines['top'].set_visible(False)
+            ax_dd.spines['right'].set_visible(False)
+            ax_dd.set_ylabel("Drawdown (%)")
 
+    # --- PATCH 3B: DISPLAY BOTH GRAPHS ---
     plt.tight_layout()
     plt.subplots_adjust(top=0.92)
+    fig_dd.tight_layout()
+    fig_dd.subplots_adjust(top=0.90)
     
     st.pyplot(fig)
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.pyplot(fig_dd)
     
     st.markdown("### 🏆 THE REAL-WORLD REPORT CARD")
     if bt_results:
