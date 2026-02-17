@@ -170,6 +170,11 @@ with st.expander("Tignan ang Backtest Graphs & Report (Pindutin para bumuka)", e
     axes = axes.flatten()
 
     bt_results = []
+
+    # --- PATCH 1: CANVAS PARA SA UNDERWATER DRAWDOWN ---
+    fig_dd, axes_dd = plt.subplots(2, 2, figsize=(16, 6))
+    fig_dd.suptitle("🌊 UNDERWATER DRAWDOWN (Ang Sukat ng Baha)", fontsize=16, fontweight='bold', color='#ff4d4d')
+    axes_dd = axes_dd.flatten()
     
     with st.spinner("Simulating 3 years of Warlord trades..."):
         for idx, ticker in enumerate(BT_TICKERS):
@@ -220,12 +225,54 @@ with st.expander("Tignan ang Backtest Graphs & Report (Pindutin para bumuka)", e
             roll_max = df_clean['Cum_Strat'].cummax()
             max_dd = ((df_clean['Cum_Strat'] / roll_max) - 1).min() * 100
             
+            # --- PATCH 2: THE GOD-TIER KPIs PATCH ---
+            days_in_market = len(df_clean[df_clean['Position'] > 0])
+            total_days = len(df_clean)
+            exposure_pct = (days_in_market / total_days) * 100 if total_days > 0 else 0
+            
+            df_clean['Trade_Start'] = ((df_clean['Position'] > 0) & (df_clean['Position'].shift(1) == 0)).astype(int)
+            df_clean['Trade_ID'] = df_clean['Trade_Start'].cumsum()
+            
+            in_market_df = df_clean[df_clean['Position'] > 0]
+            if not in_market_df.empty:
+                trade_returns = in_market_df.groupby('Trade_ID')['Strat_Ret'].apply(lambda x: (1+x).prod() - 1)
+                winning_trades = trade_returns[trade_returns > 0]
+                losing_trades = trade_returns[trade_returns <= 0]
+                
+                total_trades = len(trade_returns)
+                win_rate = (len(winning_trades) / total_trades) * 100 if total_trades > 0 else 0
+                avg_win = winning_trades.mean() * 100 if not winning_trades.empty else 0
+                avg_loss = losing_trades.mean() * 100 if not losing_trades.empty else 0
+                
+                gross_profit = winning_trades.sum()
+                gross_loss = abs(losing_trades.sum())
+                profit_factor = (gross_profit / gross_loss) if gross_loss > 0 else np.nan
+                
+                # MAX LOSING STREAK LOGIC
+                is_loss = (trade_returns <= 0).astype(int)
+                streak = is_loss.groupby((is_loss != is_loss.shift()).cumsum()).cumsum()
+                max_losing_streak = streak.max() if not streak.empty else 0
+            else:
+                total_trades = win_rate = avg_win = avg_loss = profit_factor = max_losing_streak = 0
+                
+            years_in_market = total_days / 365.25
+            ann_ret = (df_clean['Cum_Strat'].iloc[-1]) ** (1 / years_in_market) - 1 if years_in_market > 0 else 0
+            calmar = ann_ret / (abs(max_dd) / 100) if max_dd != 0 else np.nan
+
             bt_results.append({
                 "Asset": ticker.replace("-USD", ""),
-                "Algo ROI (%)": f"{algo_roi:.1f}%",
-                "HODL ROI (%)": f"{hold_roi:.1f}%",
-                "Sharpe Ratio": f"{sharpe:.2f}",
-                "Max Drawdown (%)": f"{max_dd:.1f}%"
+                "Algo ROI": f"{algo_roi:.1f}%",
+                "HODL ROI": f"{hold_roi:.1f}%",
+                "Max DD": f"{max_dd:.1f}%",
+                "Sharpe": f"{sharpe:.2f}",
+                "Calmar": f"{calmar:.2f}",
+                "Win Rate": f"{win_rate:.1f}%",
+                "Profit Fctr": f"{profit_factor:.2f}",
+                "Avg Win": f"+{avg_win:.1f}%",
+                "Avg Loss": f"{avg_loss:.1f}%",
+                "Max Lose Streak": int(max_losing_streak),
+                "Total Trades": total_trades,
+                "Exposure": f"{exposure_pct:.1f}%"
             })
             
             # Plotting (Hindi ko ginalaw ang aesthetics mo)
@@ -243,12 +290,26 @@ with st.expander("Tignan ang Backtest Graphs & Report (Pindutin para bumuka)", e
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
             ax.set_ylabel("Equity Multiplier")
+            # --- PATCH 3: UNDERWATER DRAWDOWN PLOTTING ---
+            drawdown_series = ((df_clean['Cum_Strat'] / roll_max) - 1) * 100
+            ax_dd = axes_dd[idx]
+            ax_dd.fill_between(df_clean.index, drawdown_series, 0, color='#ff4d4d', alpha=0.3)
+            ax_dd.plot(df_clean.index, drawdown_series, color='#ff4d4d', linewidth=1.2)
+            ax_dd.set_title(f"{ticker.replace('-USD', '')} Drawdown %", fontsize=11, color='white')
+            ax_dd.grid(True, color='#333333', linestyle='--', alpha=0.5)
+            ax_dd.spines['top'].set_visible(False)
+            ax_dd.spines['right'].set_visible(False)
+            ax_dd.set_ylabel("Drawdown (%)")
 
+    # --- PATCH 4: DISPLAY BOTH GRAPHS ---
     plt.tight_layout()
     plt.subplots_adjust(top=0.92)
+    fig_dd.tight_layout()
+    fig_dd.subplots_adjust(top=0.90)
     
-    # ETO ANG SIKRETO NG STREAMLIT (Pagpapalabas ng drawing sa web)
     st.pyplot(fig)
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.pyplot(fig_dd)
     
     st.markdown("### 🎯 3-YEAR BACKTEST REPORT")
     if bt_results:
