@@ -162,7 +162,7 @@ with st.expander("Tignan ang Backtest Graphs & Report (Pindutin para bumuka)", e
     BT_TICKERS = ["BTC-USD", "ETH-USD", "SOL-USD", "ADA-USD"]
     PERIOD = "3y"
     TARGET_VOL = 0.50
-    FEE_RATE = 0.0010
+    FEE_RATE = 0.0050  # Dambuhalang PDAX Fee (0.5%)
 
     plt.style.use('dark_background')
     fig, axes = plt.subplots(2, 2, figsize=(16, 10))
