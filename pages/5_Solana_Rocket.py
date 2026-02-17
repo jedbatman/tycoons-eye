@@ -110,7 +110,7 @@ with st.expander("Tignan ang Backtest Graph & Performance Report (with Binance F
     st.write("🤖 *Calculating G-Force and Friction...*")
     
     START_DATE = "2021-01-01"
-    FEE_RATE = 0.0010 # Binance Trading Fee (0.1%)
+    FEE_RATE = 0.0050 # PDAX Trading Fee (0.5%)
 
     plt.style.use('dark_background')
     fig, ax = plt.subplots(figsize=(14, 7))
