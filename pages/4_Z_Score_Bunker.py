@@ -184,12 +184,51 @@ with st.expander("Tignan ang Real-World Backtest Graphs & Performance Report", e
             roll_max = df_clean['Cum_Strat'].cummax()
             max_dd = ((df_clean['Cum_Strat'] / roll_max) - 1).min() * 100
             
+# --- THE GOD-TIER KPIs PATCH ---
+            # 1. Market Exposure (% Time in Market)
+            days_in_market = len(df_clean[df_clean['Position'] > 0])
+            total_days = len(df_clean)
+            exposure_pct = (days_in_market / total_days) * 100 if total_days > 0 else 0
+            
+            # 2. Trade Block Analysis (Kino-convert ang buhos ng Algo into individual "Trades")
+            df_clean['Trade_Start'] = ((df_clean['Position'] > 0) & (df_clean['Position'].shift(1) == 0)).astype(int)
+            df_clean['Trade_ID'] = df_clean['Trade_Start'].cumsum()
+            
+            in_market_df = df_clean[df_clean['Position'] > 0]
+            if not in_market_df.empty:
+                trade_returns = in_market_df.groupby('Trade_ID')['Strat_Ret'].apply(lambda x: (1+x).prod() - 1)
+                winning_trades = trade_returns[trade_returns > 0]
+                losing_trades = trade_returns[trade_returns <= 0]
+                
+                total_trades = len(trade_returns)
+                win_rate = (len(winning_trades) / total_trades) * 100 if total_trades > 0 else 0
+                avg_win = winning_trades.mean() * 100 if not winning_trades.empty else 0
+                avg_loss = losing_trades.mean() * 100 if not losing_trades.empty else 0
+                
+                gross_profit = winning_trades.sum()
+                gross_loss = abs(losing_trades.sum())
+                profit_factor = (gross_profit / gross_loss) if gross_loss > 0 else np.nan
+            else:
+                total_trades = win_rate = avg_win = avg_loss = profit_factor = 0
+                
+            # 3. Calmar Ratio (Annualized Return / Max Drawdown)
+            years_in_market = total_days / 365.25
+            ann_ret = (df_clean['Cum_Strat'].iloc[-1]) ** (1 / years_in_market) - 1 if years_in_market > 0 else 0
+            calmar = ann_ret / (abs(max_dd) / 100) if max_dd != 0 else np.nan
+
+            # 4. Ang Bagong Dashboard Output
             bt_results.append({
                 "Asset": ticker.replace("-USD", ""),
-                "Algo ROI (%)": f"{algo_roi:.1f}%",
-                "HODL ROI (%)": f"{hold_roi:.1f}%",
-                "Sharpe Ratio": f"{sharpe:.2f}",
-                "Max Drawdown (%)": f"{max_dd:.1f}%"
+                "Algo ROI": f"{algo_roi:.1f}%",
+                "HODL ROI": f"{hold_roi:.1f}%",
+                "Max DD": f"{max_dd:.1f}%",
+                "Calmar": f"{calmar:.2f}",
+                "Win Rate": f"{win_rate:.1f}%",
+                "Profit Fctr": f"{profit_factor:.2f}",
+                "Avg Win": f"+{avg_win:.1f}%",
+                "Avg Loss": f"{avg_loss:.1f}%",
+                "Total Trades": total_trades,
+                "Exposure": f"{exposure_pct:.1f}%"
             })
             
             ax = axes[idx]
