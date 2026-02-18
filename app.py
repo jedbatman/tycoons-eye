@@ -108,6 +108,8 @@ fig.add_trace(go.Mesh3d(
 
 def draw_bars(qty, size, z_pos, label, color, bundle_type="None", bundled_locs=[]):
     off = size / 2.5 
+    L_cut = Length_or_Span_mm / 3  # THE WARLORD L/3 CUT-OFF
+
     for i in range(qty):
         if qty > 1:
             y_center = Concrete_Cover_mm + Stirrup_Size_mm + (size/2) + i * ((inner_width - size)/(qty - 1))
@@ -118,6 +120,22 @@ def draw_bars(qty, size, z_pos, label, color, bundle_type="None", bundled_locs=[
         pos_label = f"Pos {i+1}"
         current_bundle = bundle_type if pos_label in bundled_locs else "None"
 
+        # --- THE WARLORD CUTTING LOGIC ---
+        if label == "Top Bar" and qty > 2:
+            if i == 0 or i == qty - 1:
+                # Corner Bars: Tuloy-tuloy mula dulo hanggang dulo
+                x_segments = [[0, Length_or_Span_mm]]
+            else:
+                # Inner Top Bars: Putol sa L/3 sa magkabilang dulo
+                x_segments = [[0, L_cut], [Length_or_Span_mm - L_cut, Length_or_Span_mm]]
+        elif label == "Extra Top Bar":
+            # Extra Top Bars: Putol din sa L/3
+            x_segments = [[0, L_cut], [Length_or_Span_mm - L_cut, Length_or_Span_mm]]
+        else:
+            # Bottom Bars at Columns: Tuloy-tuloy muna (simplified)
+            x_segments = [[0, Length_or_Span_mm]]
+
+        # Bundle offset logic
         sub_bars_coords = []
         if current_bundle == "3-Bar Bundle":
             sub_bars_coords = [
@@ -136,17 +154,19 @@ def draw_bars(qty, size, z_pos, label, color, bundle_type="None", bundled_locs=[
         bundle_tag = f" [{current_bundle}]" if current_bundle != "None" else ""
         hover_txt = f"<b>{label}{bundle_tag}</b><br>Size: {size}mm Ø<br>Spacing: {tightest_space:.1f}mm gap<extra></extra>"
 
+        # Plotting the coordinates
         for y_final, z_final in sub_bars_coords:
-            if Element_Type == "Beam":
-                x_coords, y_coords, z_coords = [0, L], [y_final, y_final], [z_final, z_final]
-            else: 
-                x_coords, y_coords, z_coords = [y_final, y_final], [z_final, z_final], [0, L]
+            for x_segment in x_segments:
+                if Element_Type == "Beam":
+                    x_coords, y_coords, z_coords = x_segment, [y_final, y_final], [z_final, z_final]
+                else: 
+                    x_coords, y_coords, z_coords = [y_final, y_final], [z_final, z_final], x_segment
 
-            fig.add_trace(go.Scatter3d(
-                x=x_coords, y=y_coords, z=z_coords, mode='lines',
-                line=dict(color=color, width=7), name=f"{label} ({size}mm Ø)",
-                hovertemplate=hover_txt
-            ))
+                fig.add_trace(go.Scatter3d(
+                    x=x_coords, y=y_coords, z=z_coords, mode='lines',
+                    line=dict(color=color, width=7), name=f"{label} ({size}mm Ø)",
+                    hovertemplate=hover_txt
+                ))
 
 top_color = bar_color_override if bar_color_override else "green"
 bot_color = bar_color_override if bar_color_override else "red"
