@@ -26,8 +26,8 @@ st.sidebar.info("4. **[ACCUMULATE]**: Buy Small. Pa-konti konti lang. Wag kang t
 def calculate_indicators(df):
     close = df['Close']
     
-    # 1. MA 200
-    ma_200 = close.rolling(200).mean()
+    # 1. MA 200 (Ngayon ay MA100 Speed Patch)
+ma_200 = close.rolling(100).mean()
     
     # 2. RSI
     delta = close.diff()
@@ -161,7 +161,7 @@ with st.expander("Tignan ang Backtest Graphs & Report (Pindutin para bumuka)", e
     # --- CONFIG ---
     BT_TICKERS = ["BTC-USD", "ETH-USD", "SOL-USD", "ADA-USD"]
     PERIOD = "3y"
-    TARGET_VOL = 0.50
+    TARGET_VOL = 0.85
     FEE_RATE = 0.0050  # Dambuhalang PDAX Fee (0.5%)
 
     plt.style.use('dark_background')
@@ -203,7 +203,7 @@ with st.expander("Tignan ang Backtest Graphs & Report (Pindutin para bumuka)", e
             
             # Risk & Exec
             df['Vol_Weight'] = TARGET_VOL / (df['Ann_Vol'] + 1e-9)
-            df['Vol_Weight'] = df['Vol_Weight'].clip(0, 1.5)
+            df['Vol_Weight'] = df['Vol_Weight'].clip(0, 2.5)
             df['Target_Position'] = df['Signal'] * df['Vol_Weight']
             
             df['Position'] = df['Target_Position'].shift(1).fillna(0) 
