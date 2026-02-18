@@ -45,6 +45,18 @@ Aggregate_Type = st.sidebar.selectbox("Aggregate Size", ["3/4 inch (20mm)", "G1 
 Gravel_Size_mm = 20 if "20mm" in Aggregate_Type else (25 if "25mm" in Aggregate_Type else 38)
 inner_width = Width_mm - (2 * Concrete_Cover_mm) - (2 * Stirrup_Size_mm)
 
+# --- WARLORD STIRRUP CALCULATOR (STEP 1 PATCH) ---
+# Calculate dimensions
+Stirrup_W = Width_mm - (2 * Concrete_Cover_mm)
+Stirrup_H = Depth_or_Height_mm - (2 * Concrete_Cover_mm)
+# Calculate hook length (6 * db or 75mm minimum, whichever is bigger)
+Hook_Len = max(6 * Stirrup_Size_mm, 75)
+# Calculate total cutting length (Perimeter + 2 hooks)
+Total_Stirrup_Len = (2 * (Stirrup_W + Stirrup_H)) + (2 * Hook_Len)
+
+# ... (Dito magpapatuloy ang mga computations mo para sa top_n, bot_n, etc.) ...
+top_n = 2 if "2-Bar" in Top_Bundle_Type else (3 if "3-Bar" in Top_Bundle_Type else 1)
+
 top_n = 2 if "2-Bar" in Top_Bundle_Type else (3 if "3-Bar" in Top_Bundle_Type else 1)
 top_De = Top_Bars_Size_mm * math.sqrt(top_n) if top_n > 1 else Top_Bars_Size_mm
 top_bundled_count = len(Top_Bundle_Locs)
@@ -247,5 +259,77 @@ st.markdown("---")
 st.subheader("📺 THE TYCOON'S DUAL-VIEW DASHBOARD")
 st.markdown("*I-lock ang isang screen sa Isometric View, at yung isa sa Top/Side view para walang kawala ang foreman!*")
 
+# ... (Pagkatapos ng lahat ng code para sa main `fig`, pero BAGO ang st.markdown("---")) ...
+
+# --- 3D STIRRUP ASSEMBLY VISUALIZER (STEP 2 PATCH) ---
+fig_stirrup = go.Figure()
+
+# 1. DRAW THE CONCRETE OUTLINE (Ghost Box)
+fig_stirrup.add_trace(go.Mesh3d(
+    x=[0, Width_mm, Width_mm, 0, 0, Width_mm, Width_mm, 0],
+    y=[0, 0, Depth_or_Height_mm, Depth_or_Height_mm, 0, 0, Depth_or_Height_mm, Depth_or_Height_mm],
+    z=[0, 0, 0, 0, Stirrup_Size_mm*5, Stirrup_Size_mm*5, Stirrup_Size_mm*5, Stirrup_Size_mm*5], # Thin slice lang
+    color='gray', opacity=0.1, name='Concrete Outline', hoverinfo='none'
+))
+
+# 2. DRAW THE MAIN STIRRUP BODY (RECTANGLE)
+# Coordinates ng 4 na kanto ng anilyo (nakasentro sa concrete cover)
+sx_coords = [Concrete_Cover_mm, Width_mm - Concrete_Cover_mm, Width_mm - Concrete_Cover_mm, Concrete_Cover_mm, Concrete_Cover_mm]
+sy_coords = [Concrete_Cover_mm, Concrete_Cover_mm, Depth_or_Height_mm - Concrete_Cover_mm, Depth_or_Height_mm - Concrete_Cover_mm, Concrete_Cover_mm]
+sz_coords = [Stirrup_Size_mm*2.5] * 5 # Nakalutang sa gitna
+
+stirrup_hover = f"<b>Main Stirrup Body</b><br>Size: {Stirrup_Size_mm}mm Ø<br>Outer Dim: {Stirrup_W:.0f}mm x {Stirrup_H:.0f}mm<extra></extra>"
+fig_stirrup.add_trace(go.Scatter3d(
+    x=sx_coords, y=sy_coords, z=sz_coords,
+    mode='lines+text', line=dict(color='blue', width=10),
+    name='Anilyo Body', hovertemplate=stirrup_hover
+))
+
+# 3. DRAW THE 135-DEGREE HOOKS (Ang Warla Part!)
+# Hook 1 (Upper Left Corner, papasok)
+h1x = [Concrete_Cover_mm, Concrete_Cover_mm + (Hook_Len * 0.707)] # 45deg projection
+h1y = [Concrete_Cover_mm, Concrete_Cover_mm + (Hook_Len * 0.707)]
+h1z = [Stirrup_Size_mm*2.5, Stirrup_Size_mm*2.5 - (Hook_Len * 0.5)] # Slight tilt for 3D effect
+fig_stirrup.add_trace(go.Scatter3d(x=h1x, y=h1y, z=h1z, mode='lines', line=dict(color='red', width=8), name='135° Hook', hoverinfo='skip'))
+
+# Hook 2 (Lower Right Corner, papasok - kunwari sa kabilang dulo ng bakal)
+h2x = [Width_mm - Concrete_Cover_mm, Width_mm - Concrete_Cover_mm - (Hook_Len * 0.707)]
+h2y = [Depth_or_Height_mm - Concrete_Cover_mm, Depth_or_Height_mm - Concrete_Cover_mm - (Hook_Len * 0.707)]
+h2z = [Stirrup_Size_mm*2.5, Stirrup_Size_mm*2.5 + (Hook_Len * 0.5)]
+fig_stirrup.add_trace(go.Scatter3d(x=h2x, y=h2y, z=h2z, mode='lines', line=dict(color='red', width=8), name='135° Hook', showlegend=False, hoverinfo='skip'))
+
+# 4. ADD ANNOTATIONS & LAYOUT
+fig_stirrup.update_layout(
+    title=f"<b>STIRRUP ASSEMBLY GUIDE</b><br>Total Cut Length: <span style='color:red'>{Total_Stirrup_Len:.0f}mm</span><br>Hook Length (H.L.): {Hook_Len:.0f}mm (135°)",
+    scene=dict(
+        aspectmode='data',
+        xaxis=dict(title="Width (mm)", visible=False),
+        yaxis=dict(title="Depth (mm)", visible=False),
+        zaxis=dict(title="", visible=False, range=[0, Stirrup_Size_mm*10]), # Thin view
+        camera=dict(eye=dict(x=0, y=0.1, z=2.5)) # Top-down view agad
+    ),
+    margin=dict(l=0, r=0, b=0, t=80),
+    showlegend=True
+)
+
 st.plotly_chart(fig, use_container_width=True, key="view_1")
 st.plotly_chart(fig, use_container_width=True, key="view_2")
+
+# =========================================================
+# THE TYCOON QUIRK: DUAL-VIEW DASHBOARD 📺📺
+# =========================================================
+st.markdown("---")
+st.subheader("📺 THE TYCOON'S DUAL-VIEW DASHBOARD")
+st.markdown("*I-lock ang isang screen sa Isometric View, at yung isa sa Top/Side view para walang kawala ang foreman!*")
+
+col1, col2 = st.columns(2) # Gawin nating side-by-side para malinis
+with col1:
+    st.plotly_chart(fig, use_container_width=True, key="view_1")
+with col2:
+    st.plotly_chart(fig, use_container_width=True, key="view_2")
+
+# --- STEP 3 PATCH: INSERT THE 3RD VIEW HERE ---
+st.markdown("---")
+st.subheader("🔨 STEELMAN'S CORNER: STIRRUP ASSEMBLY GUIDE")
+st.markdown("*Ito ang gayahin ng latero. Bawal ang 90-degrees na hook sa seismic zone!*")
+st.plotly_chart(fig_stirrup, use_container_width=True, key="view_3_stirrup")
