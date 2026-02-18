@@ -129,17 +129,17 @@ with st.spinner('🤖 DeepThink Engine is extracting True Velocity...'):
             macro = float(df['Macro_Slope'].iloc[-1])
 
             # --- MANUAL PATCH: BENDER'S SANITY CHECK (MA200 & RSI) ---
-          ma_200 = df['Close'].rolling(200).mean()
-          ma200_val = float(ma_200.iloc[-1]) if len(ma_200.dropna()) > 0 else current_price
-          dist_pct = ((current_price - ma200_val) / ma200_val) * 100
+            ma_200 = df['Close'].rolling(200).mean()
+            ma200_val = float(ma_200.iloc[-1]) if len(ma_200.dropna()) > 0 else current_price
+            dist_pct = ((current_price - ma200_val) / ma200_val) * 100
 
-          delta = df['Close'].diff()
-          gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-          loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-          rs = gain / (loss + 1e-9)
-          rsi = 100 - (100 / (1 + rs))
-          rsi_val = float(rsi.iloc[-1])
-          # ---------------------------------------------------------
+            delta = df['Close'].diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+            rs = gain / (loss + 1e-9)
+            rsi = 100 - (100 / (1 + rs))
+            rsi_val = float(rsi.iloc[-1])
+            # ---------------------------------------------------------
 
             
             
