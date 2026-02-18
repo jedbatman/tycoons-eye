@@ -312,9 +312,6 @@ fig_stirrup.update_layout(
     showlegend=True
 )
 
-st.plotly_chart(fig, use_container_width=True, key="view_1")
-st.plotly_chart(fig, use_container_width=True, key="view_2")
-
 # =========================================================
 # THE TYCOON QUIRK: DUAL-VIEW DASHBOARD 📺📺
 # =========================================================
@@ -322,13 +319,12 @@ st.markdown("---")
 st.subheader("📺 THE TYCOON'S DUAL-VIEW DASHBOARD")
 st.markdown("*I-lock ang isang screen sa Isometric View, at yung isa sa Top/Side view para walang kawala ang foreman!*")
 
-col1, col2 = st.columns(2) # Gawin nating side-by-side para malinis
+col1, col2 = st.columns(2)
 with col1:
-    st.plotly_chart(fig, use_container_width=True, key="view_1")
+    st.plotly_chart(fig, use_container_width=True, key="view_1_main")
 with col2:
-    st.plotly_chart(fig, use_container_width=True, key="view_2")
+    st.plotly_chart(fig, use_container_width=True, key="view_2_main")
 
-# --- STEP 3 PATCH: INSERT THE 3RD VIEW HERE ---
 st.markdown("---")
 st.subheader("🔨 STEELMAN'S CORNER: STIRRUP ASSEMBLY GUIDE")
 st.markdown("*Ito ang gayahin ng latero. Bawal ang 90-degrees na hook sa seismic zone!*")
