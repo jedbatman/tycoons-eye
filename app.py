@@ -386,15 +386,15 @@ with col_est:
                f"- Cost: **₱ {cost_conc:,.2f}**")
     
     st.info(f"**📌 STIRRUPS {Stirrup_Size_mm}mm Ø (₱{p_stirrup:,.2f}/pc):**\n"
-            f"- Buy (6m): **{buy_stirrup_pcs} pcs**\n"
+            f"- Buy (6m): **{buy_stirrup_pcs} pcs** *(incl. 10% waste)*\n"
             f"- Cost: **₱ {cost_stirrup:,.2f}**")
 
     st.success(f"**📌 TOP BARS {Top_Bars_Size_mm}mm Ø (₱{p_top:,.2f}/pc):**\n"
-               f"- Buy (6m): **{buy_top_pcs} pcs**\n"
+               f"- Buy (6m): **{buy_top_pcs} pcs** *(incl. 10% waste/splice)*\n"
                f"- Cost: **₱ {cost_top:,.2f}**")
 
     st.error(f"**📌 BOTTOM BARS {Bottom_Bars_Size_mm}mm Ø (₱{p_bot:,.2f}/pc):**\n"
-             f"- Buy (6m): **{buy_bot_pcs} pcs**\n"
+             f"- Buy (6m): **{buy_bot_pcs} pcs** *(incl. 10% waste/splice)*\n"
              f"- Cost: **₱ {cost_bot:,.2f}**")
              
     st.markdown(f"**🪢 TIE WIRE / ALAMBRE (₱{p_tie_wire:,.2f}/kg):**\n"
