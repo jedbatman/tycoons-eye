@@ -326,7 +326,43 @@ with col1:
 with col2:
     st.plotly_chart(fig, use_container_width=True, key="view_2_main")
 
+# --- STEP 4 PATCH: MATERIAL ESTIMATOR & SIDE-BY-SIDE LAYOUT ---
 st.markdown("---")
-st.subheader("🔨 STEELMAN'S CORNER: STIRRUP ASSEMBLY GUIDE")
-st.markdown("*Ito ang gayahin ng latero. Bawal ang 90-degrees na hook sa seismic zone!*")
-st.plotly_chart(fig_stirrup, use_container_width=True, key="view_3_stirrup")
+st.subheader("🔨 STEELMAN'S CORNER & KAMOTE ESTIMATOR")
+st.markdown("*Ito ang gayahin ng latero. Dito rin ang listahan ng bibilhin sa hardware para iwas nakaw!*")
+
+# --- WARLORD MATH PARA SA ESTIMATOR ---
+# 1. Bilang ng Anilyo (Kukunin natin sa mismong dami ng na-drawing sa 3D!)
+num_stirrups = len(stirrup_x)
+total_stirrup_meters = (Total_Stirrup_Len * num_stirrups) / 1000
+
+# 2. Top Bars Math (Corner = Full Span, Inner & Extra = L/3 cuts)
+top_corner_len = 2 * Length_or_Span_mm if Top_Bars_Qty >= 2 else Top_Bars_Qty * Length_or_Span_mm
+top_inner_len = (Top_Bars_Qty - 2) * (L_cut * 2) if Top_Bars_Qty > 2 else 0
+extra_top_len = Extra_Top_Bars_Qty * (L_cut * 2)
+total_top_meters = (top_corner_len + top_inner_len + extra_top_len) / 1000
+
+# 3. Bottom Bars Math (Lahat Full Span)
+total_bot_meters = ((Bottom_Bars_Qty * Length_or_Span_mm) + (Extra_Bottom_Bars_Qty * Length_or_Span_mm)) / 1000
+
+# --- PAGHAHATI NG SCREEN (Kaliwa: Estimator, Kanan: 3D Anilyo) ---
+col_est, col_stirrup = st.columns([1, 2]) # 1/3 sa kaliwa, 2/3 sa kanan
+
+with col_est:
+    st.markdown("### 📝 REBAR TAKE-OFF")
+    
+    st.info(f"**📌 ANILYO / STIRRUPS ({Stirrup_Size_mm}mm Ø):**\n"
+            f"- Total Pcs: **{num_stirrups} pcs**\n"
+            f"- Gross Length: **{total_stirrup_meters:.2f} meters**\n"
+            f"- *(Est. 6m Commercial: **{math.ceil(total_stirrup_meters/6)} pcs**)*")
+
+    st.success(f"**📌 TOP BARS ({Top_Bars_Size_mm}mm Ø):**\n"
+               f"- Gross Length: **{total_top_meters:.2f} meters**\n"
+               f"- *(Est. 6m Commercial: **{math.ceil(total_top_meters/6)} pcs**)*")
+
+    st.error(f"**📌 BOTTOM BARS ({Bottom_Bars_Size_mm}mm Ø):**\n"
+             f"- Gross Length: **{total_bot_meters:.2f} meters**\n"
+             f"- *(Est. 6m Commercial: **{math.ceil(total_bot_meters/6)} pcs**)*")
+
+with col_stirrup:
+    st.plotly_chart(fig_stirrup, use_container_width=True, key="view_3_stirrup")
