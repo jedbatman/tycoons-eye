@@ -336,10 +336,13 @@ st.markdown("*Ito ang gayahin ng latero. Dito rin ang listahan ng bibilhin sa ha
 num_stirrups = len(stirrup_x)
 total_stirrup_meters = (Total_Stirrup_Len * num_stirrups) / 1000
 
+# DITO YUNG FIX PRE! Ide-define natin ulit yung L_cut para mabasa ng estimator!
+L_cut_est = Length_or_Span_mm / 3 
+
 # 2. Top Bars Math (Corner = Full Span, Inner & Extra = L/3 cuts)
 top_corner_len = 2 * Length_or_Span_mm if Top_Bars_Qty >= 2 else Top_Bars_Qty * Length_or_Span_mm
-top_inner_len = (Top_Bars_Qty - 2) * (L_cut * 2) if Top_Bars_Qty > 2 else 0
-extra_top_len = Extra_Top_Bars_Qty * (L_cut * 2)
+top_inner_len = (Top_Bars_Qty - 2) * (L_cut_est * 2) if Top_Bars_Qty > 2 else 0
+extra_top_len = Extra_Top_Bars_Qty * (L_cut_est * 2)
 total_top_meters = (top_corner_len + top_inner_len + extra_top_len) / 1000
 
 # 3. Bottom Bars Math (Lahat Full Span)
