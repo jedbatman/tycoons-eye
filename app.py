@@ -365,7 +365,7 @@ with c1: price_conc = st.number_input("Concrete (₱/m³)", value=5500) # Ready-
 with c2: p_stirrup = st.number_input(f"{Stirrup_Size_mm}mm Rebar (₱/pc)", value=160 if Stirrup_Size_mm <= 10 else 230)
 with c3: p_top = st.number_input(f"{Top_Bars_Size_mm}mm Rebar (₱/pc)", value=650 if Top_Bars_Size_mm == 20 else 420)
 with c4: p_bot = st.number_input(f"{Bottom_Bars_Size_mm}mm Rebar (₱/pc)", value=650 if Bottom_Bars_Size_mm == 20 else 420)
-p_tie_wire = 85 # Presyo ng Tie Wire per Kilo (Hardcoded na lang para mabilis, pero Warlord rate 'to)
+p_tie_wire = 85 # Presyo ng Tie Wire per Kilo 
 
 # 3. Compute Warlord Totals
 cost_conc = vol_m3 * price_conc
