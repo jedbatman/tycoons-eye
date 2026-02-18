@@ -329,43 +329,52 @@ with col2:
 # --- STEP 4 PATCH: MATERIAL ESTIMATOR & SIDE-BY-SIDE LAYOUT ---
 st.markdown("---")
 st.subheader("🔨 STEELMAN'S CORNER & KAMOTE ESTIMATOR")
-st.markdown("*Ito ang gayahin ng latero. Dito rin ang listahan ng bibilhin sa hardware para iwas nakaw!*")
+st.markdown("*Ito ang gayahin ng latero. Dito rin ang listahan ng bibilhin sa hardware (may 10% Kamote Allowance para sa retaso at splice)!*")
 
 # --- WARLORD MATH PARA SA ESTIMATOR ---
-# 1. Bilang ng Anilyo (Kukunin natin sa mismong dami ng na-drawing sa 3D!)
+# 1. Bilang ng Anilyo
 num_stirrups = len(stirrup_x)
 total_stirrup_meters = (Total_Stirrup_Len * num_stirrups) / 1000
 
-# DITO YUNG FIX PRE! Ide-define natin ulit yung L_cut para mabasa ng estimator!
 L_cut_est = Length_or_Span_mm / 3 
 
-# 2. Top Bars Math (Corner = Full Span, Inner & Extra = L/3 cuts)
+# 2. Top Bars Math
 top_corner_len = 2 * Length_or_Span_mm if Top_Bars_Qty >= 2 else Top_Bars_Qty * Length_or_Span_mm
 top_inner_len = (Top_Bars_Qty - 2) * (L_cut_est * 2) if Top_Bars_Qty > 2 else 0
 extra_top_len = Extra_Top_Bars_Qty * (L_cut_est * 2)
 total_top_meters = (top_corner_len + top_inner_len + extra_top_len) / 1000
 
-# 3. Bottom Bars Math (Lahat Full Span)
+# 3. Bottom Bars Math
 total_bot_meters = ((Bottom_Bars_Qty * Length_or_Span_mm) + (Extra_Bottom_Bars_Qty * Length_or_Span_mm)) / 1000
 
+# 4. CONCRETE VOLUME MATH (L x W x H in meters)
+vol_m3 = (Length_or_Span_mm / 1000) * (Width_mm / 1000) * (Depth_or_Height_mm / 1000)
+
+# --- THE WARLORD 10% KAMOTE ALLOWANCE ---
+wastage = 1.10 # Dinagdagan natin ng 10% para sureball!
+
 # --- PAGHAHATI NG SCREEN (Kaliwa: Estimator, Kanan: 3D Anilyo) ---
-col_est, col_stirrup = st.columns([1, 2]) # 1/3 sa kaliwa, 2/3 sa kanan
+col_est, col_stirrup = st.columns([1, 2]) 
 
 with col_est:
-    st.markdown("### 📝 REBAR TAKE-OFF")
+    st.markdown("### 📝 REBAR & CONCRETE TAKE-OFF")
+    
+    st.warning(f"**🚛 CONCRETE VOLUME:**\n"
+               f"- Buhos Needed: **{vol_m3:.2f} cubic meters (m³)**\n"
+               f"- *(Wag kalimutan mag-allowance ng 5% sa site kung tabingi ang porma!)*")
     
     st.info(f"**📌 ANILYO / STIRRUPS ({Stirrup_Size_mm}mm Ø):**\n"
             f"- Total Pcs: **{num_stirrups} pcs**\n"
             f"- Gross Length: **{total_stirrup_meters:.2f} meters**\n"
-            f"- *(Est. 6m Commercial: **{math.ceil(total_stirrup_meters/6)} pcs**)*")
+            f"- Buy (6m): **{math.ceil((total_stirrup_meters/6) * wastage)} pcs** *(incl. 10% waste)*")
 
     st.success(f"**📌 TOP BARS ({Top_Bars_Size_mm}mm Ø):**\n"
                f"- Gross Length: **{total_top_meters:.2f} meters**\n"
-               f"- *(Est. 6m Commercial: **{math.ceil(total_top_meters/6)} pcs**)*")
+               f"- Buy (6m): **{math.ceil((total_top_meters/6) * wastage)} pcs** *(incl. 10% waste/splice)*")
 
     st.error(f"**📌 BOTTOM BARS ({Bottom_Bars_Size_mm}mm Ø):**\n"
              f"- Gross Length: **{total_bot_meters:.2f} meters**\n"
-             f"- *(Est. 6m Commercial: **{math.ceil(total_bot_meters/6)} pcs**)*")
+             f"- Buy (6m): **{math.ceil((total_bot_meters/6) * wastage)} pcs** *(incl. 10% waste/splice)*")
 
 with col_stirrup:
     st.plotly_chart(fig_stirrup, use_container_width=True, key="view_3_stirrup")
