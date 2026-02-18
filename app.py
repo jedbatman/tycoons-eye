@@ -41,6 +41,15 @@ Stirrup_Spacing_Support_mm = st.sidebar.number_input("Support Spacing (mm) [L/4]
 Stirrup_Spacing_Midspan_mm = st.sidebar.number_input("Midspan Spacing (mm)", value=150)
 Aggregate_Type = st.sidebar.selectbox("Aggregate Size", ["3/4 inch (20mm)", "G1 (25mm)", "G1.5 (38mm)"])
 
+st.sidebar.header("5. STRUCTURAL STRENGTH (LAKAS)")
+fc_input = st.sidebar.selectbox("Lakas ng Semento (f'c)", [
+    "2000 psi (14 MPa)", "2500 psi (17 MPa)", "3000 psi (21 MPa)", 
+    "3500 psi (24 MPa)", "4000 psi (28 MPa)", "5000 psi (35 MPa)"
+], index=2) # Default is 3000 psi
+fy_input = st.sidebar.selectbox("Grade ng Bakal (fy)", [
+    "Grade 33 (230 MPa)", "Grade 40 (275 MPa)", "Grade 60 (414 MPa)"
+], index=1) # Default is Grade 40
+
 # --- HONEYCOMB LOGIC (ANG UTAK NG AI) ---
 Gravel_Size_mm = 20 if "20mm" in Aggregate_Type else (25 if "25mm" in Aggregate_Type else 38)
 inner_width = Width_mm - (2 * Concrete_Cover_mm) - (2 * Stirrup_Size_mm)
@@ -78,7 +87,37 @@ required_clearance = Gravel_Size_mm * 1.33
 bar_color_override = None
 stirrup_color = 'blue'
 
-st.subheader("🤖 AI DIAGNOSTICS")
+st.subheader("🤖 AI DIAGNOSTICS & STRUCTURAL CAPACITY")
+
+# --- WARLORD STRUCTURAL CALCULATOR (MOMENT CAPACITY) ---
+# Kunin ang MPa (MegaPascals) mula sa text
+fc_mpa = int(fc_input.split("(")[1].split(" ")[0])
+fy_mpa = int(fy_input.split("(")[1].split(" ")[0])
+
+# 1. Effective Depths (d) - Distansya mula sa edge hanggang sa bakal
+d_bot = Depth_or_Height_mm - Concrete_Cover_mm - Stirrup_Size_mm - (Bottom_Bars_Size_mm / 2)
+d_top = Depth_or_Height_mm - Concrete_Cover_mm - Stirrup_Size_mm - (Top_Bars_Size_mm / 2)
+
+# 2. Area of Steel (As) - Kabuuang nipis ng bakal
+As_bot = Bottom_Bars_Qty * (math.pi * (Bottom_Bars_Size_mm ** 2) / 4)
+As_top = Top_Bars_Qty * (math.pi * (Top_Bars_Size_mm ** 2) / 4)
+
+# 3. Depth of Compression Block (a)
+a_bot = (As_bot * fy_mpa) / (0.85 * fc_mpa * Width_mm)
+a_top = (As_top * fy_mpa) / (0.85 * fc_mpa * Width_mm)
+
+# 4. Ultimate Moment Capacity (Phi Mn) -> kinoconvert sa kilonewton-meter (kN-m)
+phi = 0.90 # 90% Safety Factor ng Code
+phi_Mn_bot = (phi * As_bot * fy_mpa * (d_bot - (a_bot / 2))) / 1000000
+phi_Mn_top = (phi * As_top * fy_mpa * (d_top - (a_top / 2))) / 1000000
+
+st.info(f"💪 **WARLORD CAPACITY CHECK (Lakas ng Biga):**\n"
+        f"- **Lakas sa Gitna (Midspan/Bottom Bars):** `{phi_Mn_bot:.2f} kN-m`\n"
+        f"- **Lakas sa Poste (Support/Top Bars):** `{phi_Mn_top:.2f} kN-m`\n"
+        f"*(Warlord Tip: Ito ang Flexural Capacity (φMn). Ibig sabihin, hanggang ganyang bigat ng bending pwersa (kN-m) ang kayang buhatin ng biga bago ito bumigay!)*")
+
+# AI Symmetry Checker Logic
+def check_sym(locs, qty):
 
 # AI Symmetry Checker Logic
 def check_sym(locs, qty):
