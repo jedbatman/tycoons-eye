@@ -263,14 +263,19 @@ st.markdown("*I-lock ang isang screen sa Isometric View, at yung isa sa Top/Side
 
 # --- 3D STIRRUP ASSEMBLY VISUALIZER ---
 fig_stirrup = go.Figure()
-fig_stirrup.add_trace(go.Mesh3d(
-    x=[0, Width_mm, Width_mm, 0, 0, Width_mm, Width_mm, 0],
-    y=[0, 0, Depth_or_Height_mm, Depth_or_Height_mm, 0, 0, Depth_or_Height_mm, Depth_or_Height_mm],
-    z=[0, 0, 0, 0, Stirrup_Size_mm*5, Stirrup_Size_mm*5, Stirrup_Size_mm*5, Stirrup_Size_mm*5],
-    color='gray', opacity=0.1, name='Concrete Outline', hoverinfo='none'
+
+# 1. WARLORD CONCRETE OUTLINE (Pinalitan ng Dashed Lines para 100% kita ang Concrete Cover!)
+cx = [0, Width_mm, Width_mm, 0, 0]
+cy = [0, 0, Depth_or_Height_mm, Depth_or_Height_mm, 0]
+cz = [Stirrup_Size_mm*2.5] * 5
+
+fig_stirrup.add_trace(go.Scatter3d(
+    x=cx, y=cy, z=cz, mode='lines',
+    line=dict(color='gray', width=4, dash='dash'),
+    name='Concrete Edge', hoverinfo='skip'
 ))
 
-# 4 Corners ng Main Anilyo Body
+# 2. MAIN STIRRUP BODY (Blue Anilyo)
 sx_coords = [Concrete_Cover_mm, Width_mm - Concrete_Cover_mm, Width_mm - Concrete_Cover_mm, Concrete_Cover_mm, Concrete_Cover_mm]
 sy_coords = [Concrete_Cover_mm, Concrete_Cover_mm, Depth_or_Height_mm - Concrete_Cover_mm, Depth_or_Height_mm - Concrete_Cover_mm, Concrete_Cover_mm]
 sz_coords = [Stirrup_Size_mm*2.5] * 5 
@@ -278,26 +283,32 @@ sz_coords = [Stirrup_Size_mm*2.5] * 5
 stirrup_hover = f"<b>Main Stirrup Body</b><br>Size: {Stirrup_Size_mm}mm Ø<br>Outer Dim: {Stirrup_W:.0f}mm x {Stirrup_H:.0f}mm<extra></extra>"
 fig_stirrup.add_trace(go.Scatter3d(x=sx_coords, y=sy_coords, z=sz_coords, mode='lines+text', line=dict(color='blue', width=10), name='Anilyo Body', hovertemplate=stirrup_hover))
 
-# --- THE WARLORD REALISTIC HOOKS (Pinagsama sa Top-Right Corner) ---
+# 3. REALISTIC 135-DEGREE HOOKS (Inayos ang Bend Offset para hindi Ipit!)
 corner_x = Width_mm - Concrete_Cover_mm
 corner_y = Depth_or_Height_mm - Concrete_Cover_mm
 
-# Hook 1 (Babaluktot papasok sa core - angle 1)
-h1x = [corner_x, corner_x - (Hook_Len * 0.707)] 
+# Hook 1 (Galing sa Top Bar, papasok) - Inatras nang kaunti sa X-axis
+h1x = [corner_x - (Stirrup_Size_mm * 1.5), corner_x - (Hook_Len * 0.707)] 
 h1y = [corner_y, corner_y - (Hook_Len * 0.707)]
-h1z = [Stirrup_Size_mm*2.5, Stirrup_Size_mm*2.5 + (Stirrup_Size_mm * 1.5)] # Nakaangat ng konti para di mag-patong
+h1z = [Stirrup_Size_mm*2.5, Stirrup_Size_mm*2.5 + Stirrup_Size_mm]
 fig_stirrup.add_trace(go.Scatter3d(x=h1x, y=h1y, z=h1z, mode='lines', line=dict(color='red', width=8), name='135° Hook', hoverinfo='skip'))
 
-# Hook 2 (Babaluktot papasok sa core - angle 2 para magmukhang realistic na patong)
+# Hook 2 (Galing sa Right Bar, papasok) - Inatras nang kaunti sa Y-axis
 h2x = [corner_x, corner_x - (Hook_Len * 0.85)]
-h2y = [corner_y, corner_y - (Hook_Len * 0.5)]
-h2z = [Stirrup_Size_mm*2.5, Stirrup_Size_mm*2.5 - (Stirrup_Size_mm * 1.5)] # Nakababa ng konti
+h2y = [corner_y - (Stirrup_Size_mm * 1.5), corner_y - (Hook_Len * 0.5)]
+h2z = [Stirrup_Size_mm*2.5, Stirrup_Size_mm*2.5 - Stirrup_Size_mm]
 fig_stirrup.add_trace(go.Scatter3d(x=h2x, y=h2y, z=h2z, mode='lines', line=dict(color='red', width=8), name='135° Hook', showlegend=False, hoverinfo='skip'))
 
-# Pinalitan na natin ang RED text ng BLUE para kalmado lang si Foreman!
+# 4. LAYOUT UPDATE (Nilagyan ng extra "padding" sa camera para kita ang cover!)
 fig_stirrup.update_layout(
     title=f"<b>STIRRUP ASSEMBLY GUIDE</b><br>Total Cut Length: <span style='color:blue'>{Total_Stirrup_Len:.0f}mm</span><br>Hook Length (H.L.): {Hook_Len:.0f}mm (135°)",
-    scene=dict(aspectmode='data', xaxis=dict(title="Width (mm)", visible=False), yaxis=dict(title="Depth (mm)", visible=False), zaxis=dict(title="", visible=False, range=[0, Stirrup_Size_mm*10]), camera=dict(eye=dict(x=0, y=0.1, z=2.5))),
+    scene=dict(
+        aspectmode='data', 
+        xaxis=dict(title="Width (mm)", visible=False, range=[-50, Width_mm + 50]), # EXTRA PADDING DITO!
+        yaxis=dict(title="Depth (mm)", visible=False, range=[-50, Depth_or_Height_mm + 50]), # EXTRA PADDING DITO!
+        zaxis=dict(title="", visible=False, range=[0, Stirrup_Size_mm*10]), 
+        camera=dict(eye=dict(x=0, y=0.1, z=2.5))
+    ),
     margin=dict(l=0, r=0, b=0, t=80), showlegend=True
 )
 
