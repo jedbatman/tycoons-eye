@@ -361,10 +361,10 @@ tie_wire_kg = math.ceil(total_rebar_weight_kg * 0.015) # 1.5% rule of thumb para
 # --- THE LIVE MARKET PRICE CALCULATOR (Maa-adjust ni User!) ---
 st.markdown("### 🛒 LOCAL HARDWARE PRICE INPUTS (I-adjust base sa resibo)")
 c1, c2, c3, c4 = st.columns(4)
-with c1: price_conc = st.number_input("Concrete (₱/m³)", value=5500) # Ready-mix avg
-with c2: p_stirrup = st.number_input(f"{Stirrup_Size_mm}mm Rebar (₱/pc)", value=160 if Stirrup_Size_mm <= 10 else 230)
-with c3: p_top = st.number_input(f"{Top_Bars_Size_mm}mm Rebar (₱/pc)", value=650 if Top_Bars_Size_mm == 20 else 420)
-with c4: p_bot = st.number_input(f"{Bottom_Bars_Size_mm}mm Rebar (₱/pc)", value=650 if Bottom_Bars_Size_mm == 20 else 420)
+with c1: price_conc = st.number_input("Concrete (₱/m³)", value=5500, key="k_conc")
+with c2: p_stirrup = st.number_input(f"Anilyo {Stirrup_Size_mm}mm (₱/pc)", value=160 if Stirrup_Size_mm <= 10 else 230, key="k_stir")
+with c3: p_top = st.number_input(f"Top {Top_Bars_Size_mm}mm (₱/pc)", value=650 if Top_Bars_Size_mm == 20 else 420, key="k_top")
+with c4: p_bot = st.number_input(f"Bot {Bottom_Bars_Size_mm}mm (₱/pc)", value=650 if Bottom_Bars_Size_mm == 20 else 420, key="k_bot")
 p_tie_wire = 85 # Presyo ng Tie Wire per Kilo 
 
 # 3. Compute Warlord Totals
