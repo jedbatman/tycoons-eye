@@ -127,6 +127,21 @@ with st.spinner('🤖 DeepThink Engine is extracting True Velocity...'):
             vel_z = float(df['Vel_Z'].iloc[-1])
             price_z = float(df['Price_Z'].iloc[-1])
             macro = float(df['Macro_Slope'].iloc[-1])
+
+            # --- MANUAL PATCH: BENDER'S SANITY CHECK (MA200 & RSI) ---
+          ma_200 = df['Close'].rolling(200).mean()
+          ma200_val = float(ma_200.iloc[-1]) if len(ma_200.dropna()) > 0 else current_price
+          dist_pct = ((current_price - ma200_val) / ma200_val) * 100
+
+          delta = df['Close'].diff()
+          gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+          loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+          rs = gain / (loss + 1e-9)
+          rsi = 100 - (100 / (1 + rs))
+          rsi_val = float(rsi.iloc[-1])
+          # ---------------------------------------------------------
+
+            
             
             # THE SNIPER LOGIC
             if vel_z > 1.25 and macro > 0 and price_z < 2.0:
@@ -149,6 +164,9 @@ with st.spinner('🤖 DeepThink Engine is extracting True Velocity...'):
             live_results.append({
                 "COIN": ticker.replace("-USD", ""),
                 "PRICE ($)": f"${current_price:,.2f}",
+                "MA200 ($)": f"${ma200_val:,.2f}",
+                "DIST %": f"{dist_pct:+.2f}%",
+                "RSI": round(rsi_val, 1),
                 "MACRO SLOPE": round(macro, 3),
                 "VELOCITY Z": round(vel_z, 2),
                 "PRICE Z (Hype)": round(price_z, 2),
