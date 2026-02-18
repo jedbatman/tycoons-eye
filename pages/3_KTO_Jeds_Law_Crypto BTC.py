@@ -27,7 +27,7 @@ def calculate_indicators(df):
     close = df['Close']
     
     # 1. MA 200 (Ngayon ay MA100 Speed Patch)
-ma_200 = close.rolling(100).mean()
+    ma_200 = close.rolling(100).mean()
     
     # 2. RSI
     delta = close.diff()
