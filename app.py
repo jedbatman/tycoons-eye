@@ -264,7 +264,7 @@ st.markdown("*I-lock ang isang screen sa Isometric View, at yung isa sa Top/Side
 # --- 3D STIRRUP ASSEMBLY VISUALIZER ---
 fig_stirrup = go.Figure()
 
-# 1. WARLORD CONCRETE OUTLINE (Pinalitan ng Dashed Lines para 100% kita ang Concrete Cover!)
+# 1. WARLORD CONCRETE OUTLINE (Dashed Lines)
 cx = [0, Width_mm, Width_mm, 0, 0]
 cy = [0, 0, Depth_or_Height_mm, Depth_or_Height_mm, 0]
 cz = [Stirrup_Size_mm*2.5] * 5
@@ -283,29 +283,30 @@ sz_coords = [Stirrup_Size_mm*2.5] * 5
 stirrup_hover = f"<b>Main Stirrup Body</b><br>Size: {Stirrup_Size_mm}mm Ø<br>Outer Dim: {Stirrup_W:.0f}mm x {Stirrup_H:.0f}mm<extra></extra>"
 fig_stirrup.add_trace(go.Scatter3d(x=sx_coords, y=sy_coords, z=sz_coords, mode='lines+text', line=dict(color='blue', width=10), name='Anilyo Body', hovertemplate=stirrup_hover))
 
-# 3. REALISTIC 135-DEGREE HOOKS (Inayos ang Bend Offset para hindi Ipit!)
+# 3. REALISTIC 135-DEGREE HOOKS (PARALLEL LINES NA, WALANG EKIS!)
 corner_x = Width_mm - Concrete_Cover_mm
 corner_y = Depth_or_Height_mm - Concrete_Cover_mm
+bend = Stirrup_Size_mm * 2.5 # Offset para hindi mag-banggaan
 
-# Hook 1 (Galing sa Top Bar, papasok) - Inatras nang kaunti sa X-axis
-h1x = [corner_x - (Stirrup_Size_mm * 1.5), corner_x - (Hook_Len * 0.707)] 
+# Hook 1 (Galing sa Top Bar, papasok - Parallel Math)
+h1x = [corner_x - bend, corner_x - bend - (Hook_Len * 0.707)] 
 h1y = [corner_y, corner_y - (Hook_Len * 0.707)]
 h1z = [Stirrup_Size_mm*2.5, Stirrup_Size_mm*2.5 + Stirrup_Size_mm]
 fig_stirrup.add_trace(go.Scatter3d(x=h1x, y=h1y, z=h1z, mode='lines', line=dict(color='red', width=8), name='135° Hook', hoverinfo='skip'))
 
-# Hook 2 (Galing sa Right Bar, papasok) - Inatras nang kaunti sa Y-axis
-h2x = [corner_x, corner_x - (Hook_Len * 0.85)]
-h2y = [corner_y - (Stirrup_Size_mm * 1.5), corner_y - (Hook_Len * 0.5)]
+# Hook 2 (Galing sa Right Bar, papasok - Parallel Math)
+h2x = [corner_x, corner_x - (Hook_Len * 0.707)]
+h2y = [corner_y - bend, corner_y - bend - (Hook_Len * 0.707)]
 h2z = [Stirrup_Size_mm*2.5, Stirrup_Size_mm*2.5 - Stirrup_Size_mm]
 fig_stirrup.add_trace(go.Scatter3d(x=h2x, y=h2y, z=h2z, mode='lines', line=dict(color='red', width=8), name='135° Hook', showlegend=False, hoverinfo='skip'))
 
-# 4. LAYOUT UPDATE (Nilagyan ng extra "padding" sa camera para kita ang cover!)
+# 4. LAYOUT UPDATE
 fig_stirrup.update_layout(
     title=f"<b>STIRRUP ASSEMBLY GUIDE</b><br>Total Cut Length: <span style='color:blue'>{Total_Stirrup_Len:.0f}mm</span><br>Hook Length (H.L.): {Hook_Len:.0f}mm (135°)",
     scene=dict(
         aspectmode='data', 
-        xaxis=dict(title="Width (mm)", visible=False, range=[-50, Width_mm + 50]), # EXTRA PADDING DITO!
-        yaxis=dict(title="Depth (mm)", visible=False, range=[-50, Depth_or_Height_mm + 50]), # EXTRA PADDING DITO!
+        xaxis=dict(title="Width (mm)", visible=False, range=[-50, Width_mm + 50]), 
+        yaxis=dict(title="Depth (mm)", visible=False, range=[-50, Depth_or_Height_mm + 50]), 
         zaxis=dict(title="", visible=False, range=[0, Stirrup_Size_mm*10]), 
         camera=dict(eye=dict(x=0, y=0.1, z=2.5))
     ),
