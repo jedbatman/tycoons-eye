@@ -116,8 +116,10 @@ st.info(f"💪 **WARLORD CAPACITY CHECK (Lakas ng Biga):**\n"
         f"- **Lakas sa Poste (Support/Top Bars):** `{phi_Mn_top:.2f} kN-m`\n"
         f"*(Warlord Tip: Ito ang Flexural Capacity (φMn). Ibig sabihin, hanggang ganyang bigat ng bending pwersa (kN-m) ang kayang buhatin ng biga bago ito bumigay!)*")
 
-# AI Symmetry Checker Logic
+# AI Symmetry Checker Logic (Eto yung nawala kanina pre!)
 def check_sym(locs, qty):
+    indices = [int(loc.split(" ")[1]) for loc in locs]
+    return all((qty - i + 1) in indices for i in indices)
 
 # AI Symmetry Checker Logic
 def check_sym(locs, qty):
