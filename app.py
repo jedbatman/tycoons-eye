@@ -326,55 +326,83 @@ with col1:
 with col2:
     st.plotly_chart(fig, use_container_width=True, key="view_2_main")
 
-# --- STEP 4 PATCH: MATERIAL ESTIMATOR & SIDE-BY-SIDE LAYOUT ---
+# --- STEP 4 PATCH: MATERIAL ESTIMATOR, BUDGET & SIDE-BY-SIDE LAYOUT ---
 st.markdown("---")
-st.subheader("🔨 STEELMAN'S CORNER & KAMOTE ESTIMATOR")
-st.markdown("*Ito ang gayahin ng latero. Dito rin ang listahan ng bibilhin sa hardware (may 10% Kamote Allowance para sa retaso at splice)!*")
+st.subheader("🔨 STEELMAN'S CORNER & KAMOTE ESTIMATOR WITH 💰 BUDGET")
+st.markdown("*Ito ang gayahin ng latero. Dito rin ang listahan ng bibilhin sa hardware at ang total budget mo para iwas over-pricing!*")
 
 # --- WARLORD MATH PARA SA ESTIMATOR ---
-# 1. Bilang ng Anilyo
 num_stirrups = len(stirrup_x)
 total_stirrup_meters = (Total_Stirrup_Len * num_stirrups) / 1000
-
 L_cut_est = Length_or_Span_mm / 3 
 
-# 2. Top Bars Math
 top_corner_len = 2 * Length_or_Span_mm if Top_Bars_Qty >= 2 else Top_Bars_Qty * Length_or_Span_mm
 top_inner_len = (Top_Bars_Qty - 2) * (L_cut_est * 2) if Top_Bars_Qty > 2 else 0
 extra_top_len = Extra_Top_Bars_Qty * (L_cut_est * 2)
 total_top_meters = (top_corner_len + top_inner_len + extra_top_len) / 1000
 
-# 3. Bottom Bars Math
 total_bot_meters = ((Bottom_Bars_Qty * Length_or_Span_mm) + (Extra_Bottom_Bars_Qty * Length_or_Span_mm)) / 1000
 
-# 4. CONCRETE VOLUME MATH (L x W x H in meters)
 vol_m3 = (Length_or_Span_mm / 1000) * (Width_mm / 1000) * (Depth_or_Height_mm / 1000)
+wastage = 1.10 # 10% Kamote Allowance
 
-# --- THE WARLORD 10% KAMOTE ALLOWANCE ---
-wastage = 1.10 # Dinagdagan natin ng 10% para sureball!
+# 1. Calculate Pcs needed (Rounded Up)
+buy_stirrup_pcs = math.ceil((total_stirrup_meters / 6) * wastage)
+buy_top_pcs = math.ceil((total_top_meters / 6) * wastage)
+buy_bot_pcs = math.ceil((total_bot_meters / 6) * wastage)
 
-# --- PAGHAHATI NG SCREEN (Kaliwa: Estimator, Kanan: 3D Anilyo) ---
+# 2. Calculate Weights for Tie Wire (D^2 / 162 = kg/m) - Warlord Engineering!
+weight_stirrup = total_stirrup_meters * ((Stirrup_Size_mm**2) / 162)
+weight_top = total_top_meters * ((Top_Bars_Size_mm**2) / 162)
+weight_bot = total_bot_meters * ((Bottom_Bars_Size_mm**2) / 162)
+total_rebar_weight_kg = (weight_stirrup + weight_top + weight_bot) * wastage
+tie_wire_kg = math.ceil(total_rebar_weight_kg * 0.015) # 1.5% rule of thumb para sa Alambre
+
+# --- THE LIVE MARKET PRICE CALCULATOR (Maa-adjust ni User!) ---
+st.markdown("### 🛒 LOCAL HARDWARE PRICE INPUTS (I-adjust base sa resibo)")
+c1, c2, c3, c4 = st.columns(4)
+with c1: price_conc = st.number_input("Concrete (₱/m³)", value=5500) # Ready-mix avg
+with c2: p_stirrup = st.number_input(f"{Stirrup_Size_mm}mm Rebar (₱/pc)", value=160 if Stirrup_Size_mm <= 10 else 230)
+with c3: p_top = st.number_input(f"{Top_Bars_Size_mm}mm Rebar (₱/pc)", value=650 if Top_Bars_Size_mm == 20 else 420)
+with c4: p_bot = st.number_input(f"{Bottom_Bars_Size_mm}mm Rebar (₱/pc)", value=650 if Bottom_Bars_Size_mm == 20 else 420)
+p_tie_wire = 85 # Presyo ng Tie Wire per Kilo (Hardcoded na lang para mabilis, pero Warlord rate 'to)
+
+# 3. Compute Warlord Totals
+cost_conc = vol_m3 * price_conc
+cost_stirrup = buy_stirrup_pcs * p_stirrup
+cost_top = buy_top_pcs * p_top
+cost_bot = buy_bot_pcs * p_bot
+cost_wire = tie_wire_kg * p_tie_wire
+total_budget = cost_conc + cost_stirrup + cost_top + cost_bot + cost_wire
+
+# --- PAGHAHATI NG SCREEN (Kaliwa: Estimator & Costing, Kanan: 3D Anilyo) ---
 col_est, col_stirrup = st.columns([1, 2]) 
 
 with col_est:
-    st.markdown("### 📝 REBAR & CONCRETE TAKE-OFF")
+    st.markdown("### 📝 TAKE-OFF & COSTING")
     
-    st.warning(f"**🚛 CONCRETE VOLUME:**\n"
-               f"- Buhos Needed: **{vol_m3:.2f} cubic meters (m³)**\n"
-               f"- *(Wag kalimutan mag-allowance ng 5% sa site kung tabingi ang porma!)*")
+    st.warning(f"**🚛 CONCRETE (₱{price_conc:,.2f}/m³):**\n"
+               f"- Volume: **{vol_m3:.2f} m³**\n"
+               f"- Cost: **₱ {cost_conc:,.2f}**")
     
-    st.info(f"**📌 ANILYO / STIRRUPS ({Stirrup_Size_mm}mm Ø):**\n"
-            f"- Total Pcs: **{num_stirrups} pcs**\n"
-            f"- Gross Length: **{total_stirrup_meters:.2f} meters**\n"
-            f"- Buy (6m): **{math.ceil((total_stirrup_meters/6) * wastage)} pcs** *(incl. 10% waste)*")
+    st.info(f"**📌 STIRRUPS {Stirrup_Size_mm}mm Ø (₱{p_stirrup:,.2f}/pc):**\n"
+            f"- Buy (6m): **{buy_stirrup_pcs} pcs**\n"
+            f"- Cost: **₱ {cost_stirrup:,.2f}**")
 
-    st.success(f"**📌 TOP BARS ({Top_Bars_Size_mm}mm Ø):**\n"
-               f"- Gross Length: **{total_top_meters:.2f} meters**\n"
-               f"- Buy (6m): **{math.ceil((total_top_meters/6) * wastage)} pcs** *(incl. 10% waste/splice)*")
+    st.success(f"**📌 TOP BARS {Top_Bars_Size_mm}mm Ø (₱{p_top:,.2f}/pc):**\n"
+               f"- Buy (6m): **{buy_top_pcs} pcs**\n"
+               f"- Cost: **₱ {cost_top:,.2f}**")
 
-    st.error(f"**📌 BOTTOM BARS ({Bottom_Bars_Size_mm}mm Ø):**\n"
-             f"- Gross Length: **{total_bot_meters:.2f} meters**\n"
-             f"- Buy (6m): **{math.ceil((total_bot_meters/6) * wastage)} pcs** *(incl. 10% waste/splice)*")
+    st.error(f"**📌 BOTTOM BARS {Bottom_Bars_Size_mm}mm Ø (₱{p_bot:,.2f}/pc):**\n"
+             f"- Buy (6m): **{buy_bot_pcs} pcs**\n"
+             f"- Cost: **₱ {cost_bot:,.2f}**")
+             
+    st.markdown(f"**🪢 TIE WIRE / ALAMBRE (₱{p_tie_wire:,.2f}/kg):**\n"
+                f"- Buy: **{tie_wire_kg} kg** *(Est. 1.5% of rebar weight)*\n"
+                f"- Cost: **₱ {cost_wire:,.2f}**")
+
+    st.markdown("---")
+    st.markdown(f"<h2 style='color:green;'>💰 TOTAL BUDGET: ₱ {total_budget:,.2f}</h2>", unsafe_allow_html=True)
 
 with col_stirrup:
     st.plotly_chart(fig_stirrup, use_container_width=True, key="view_3_stirrup")
