@@ -179,11 +179,15 @@ with st.expander("Tignan ang 4-Year Lab Report & Drawdown Graphs", expanded=Fals
     axes_dd = axes_dd.flatten()
     
     bt_results = []
-    # Plotting the kings of Volume/Liquidity
-    plot_tickers = ["BTC-USD", "SOL-USD", "XRP-USD", "XLM-USD"] 
-    
-    with st.spinner("Executing Darcy-Weisbach Friction Simulator..."):
-        for idx, ticker in enumerate(plot_tickers):
+    # Dambuhalang Listahan (Top 4 ang map-plot sa graph, lahat papasok sa table)
+    backtest_tickers = [
+        "XLM-USD", "SOL-USD", "XRP-USD", "BTC-USD", "ADA-USD",
+        "ETH-USD", "AVAX-USD", "LINK-USD", "DOGE-USD", "UNI-USD",
+        "DOT-USD", "LTC-USD", "BCH-USD", "NEAR-USD", "TRX-USD"
+    ]
+
+    with st.spinner("Executing Darcy-Weisbach Friction Simulator para sa 15 coins..."):
+        for idx, ticker in enumerate(backtest_tickers):
             df = yf.download(ticker, period="4y", interval="1d", progress=False, auto_adjust=True)
             if df.empty or len(df) < 500: continue
             if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
@@ -262,6 +266,7 @@ with st.expander("Tignan ang 4-Year Lab Report & Drawdown Graphs", expanded=Fals
             
             bt_results.append({
                 "Asset": ticker.replace("-USD", ""),
+                "Raw_ROI": algo_roi,  # <-- SIKRETONG COLUMN PARA SA SORTING
                 "Algo ROI": f"{algo_roi:.1f}%",
                 "HODL ROI": f"{hodl_roi:.1f}%",
                 "Max DD": f"{max_dd:.1f}%",
@@ -273,7 +278,12 @@ with st.expander("Tignan ang 4-Year Lab Report & Drawdown Graphs", expanded=Fals
                 "Trades": total_trades,
                 "Exposure": f"{exposure:.1f}%"
             })
-            
+
+            # --- GRAPH PROTECTOR: Top 4 lang ang i-d-drawing ---
+            if idx >= 4:
+                continue
+            # ----------------------------------------------------
+
             # PLOT 1: EQUITY
             ax = axes[idx]
             ax.plot(df.index, df['Equity'], label='HPFO Engine', color='#00aaff', linewidth=2)
@@ -303,9 +313,12 @@ with st.expander("Tignan ang 4-Year Lab Report & Drawdown Graphs", expanded=Fals
     st.markdown("<br>", unsafe_allow_html=True)
     st.pyplot(fig_dd)
     
-    st.markdown("### 🏆 THE FLUID DYNAMICS LAB REPORT")
+    st.markdown("### 🏆 THE FLUID DYNAMICS LAB REPORT (RANKED COMPATIBILITY)")
     if bt_results:
-        st.dataframe(pd.DataFrame(bt_results), use_container_width=True)
+        df_report = pd.DataFrame(bt_results)
+        # I-sort mula pinakamataas na kita pababa, tapos itago ang sikretong column
+        df_report = df_report.sort_values(by="Raw_ROI", ascending=False).drop(columns=["Raw_ROI"]).reset_index(drop=True)
+        st.dataframe(df_report, use_container_width=True)
 
 st.markdown("---")
 st.subheader("🍺 BENDER'S FINAL WORD: Para tayong nag-install ng water pump sa bank vault. Bantayan mo lang ang pressure, sasabog nang kusa ang pera. Dismissed.")
