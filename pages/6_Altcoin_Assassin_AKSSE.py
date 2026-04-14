@@ -83,24 +83,52 @@ def build_features(df):
     kf_price_log, kf_vel_log = kinematic_kalman_filter(log_close, q=1e-4, r=0.01)
     
     log_rets = np.diff(log_close, prepend=log_close[0])
-    vol = pd.Series(log_rets).rolling(window=20).std().bfill().values
-    vol[vol == 0] = 1e-6 
-    
-    norm_vel = kf_vel_log / vol
-    norm_vel_s = pd.Series(norm_vel)
-    
-    roll_mean_v = norm_vel_s.rolling(50).mean().bfill().values
-    roll_std_v = norm_vel_s.rolling(50).std().bfill().values
-    roll_std_v[roll_std_v == 0] = 1e-6
-    vel_z = (norm_vel - roll_mean_v) / roll_std_v
-    
-    macro_slope = pd.Series(kf_price_log).diff(100).fillna(0).values
-    
-    log_s = pd.Series(log_close)
-    roll_mean_p = log_s.rolling(20).mean().bfill().values
-    roll_std_p = log_s.rolling(20).std().bfill().values
-    roll_std_p[roll_std_p == 0] = 1e-6
-    price_z = (log_close - roll_mean_p) / roll_std_p
+
+# Make arrays explicitly writable and robust
+vol = (
+    pd.Series(log_rets)
+    .rolling(window=20, min_periods=1)
+    .std()
+    .bfill()
+    .to_numpy(copy=True)
+)
+vol = np.where((~np.isfinite(vol)) | (vol <= 0), 1e-6, vol)
+
+norm_vel = kf_vel_log / vol
+norm_vel_s = pd.Series(norm_vel)
+
+roll_mean_v = (
+    norm_vel_s.rolling(50, min_periods=1)
+    .mean()
+    .bfill()
+    .to_numpy(copy=True)
+)
+roll_std_v = (
+    norm_vel_s.rolling(50, min_periods=1)
+    .std()
+    .bfill()
+    .to_numpy(copy=True)
+)
+roll_std_v = np.where((~np.isfinite(roll_std_v)) | (roll_std_v <= 0), 1e-6, roll_std_v)
+vel_z = (norm_vel - roll_mean_v) / roll_std_v
+
+macro_slope = pd.Series(kf_price_log).diff(100).fillna(0).to_numpy(copy=True)
+
+log_s = pd.Series(log_close)
+roll_mean_p = (
+    log_s.rolling(20, min_periods=1)
+    .mean()
+    .bfill()
+    .to_numpy(copy=True)
+)
+roll_std_p = (
+    log_s.rolling(20, min_periods=1)
+    .std()
+    .bfill()
+    .to_numpy(copy=True)
+)
+roll_std_p = np.where((~np.isfinite(roll_std_p)) | (roll_std_p <= 0), 1e-6, roll_std_p)
+price_z = (log_close - roll_mean_p) / roll_std_p
     
     df['Vel_Z'] = vel_z
     df['Price_Z'] = price_z
