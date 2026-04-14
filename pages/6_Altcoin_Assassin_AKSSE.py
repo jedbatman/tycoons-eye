@@ -209,7 +209,7 @@ with st.spinner('🤖 DeepThink Engine is extracting True Velocity...'):
                 "COMMENTARY 💬": comment
             })
         except Exception as e:
-    st.warning(f"{ticker} failed: {e}")
+            st.warning(f"{ticker} failed: {e}")
 
     if live_results:
         df_live = pd.DataFrame(live_results)
