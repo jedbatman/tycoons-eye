@@ -95,7 +95,11 @@ with st.expander("📖 BENDER'S CHEAT SHEET (Paano Basahin 'To)", expanded=True)
 st.markdown("---")
 
 # --- CONFIGURATION ---
-WATCHLIST = ["BTC-USD", "ETH-USD", "SOL-USD", "ADA-USD"]
+WATCHLIST = [
+    "BTC-USD", "ETH-USD", "SOL-USD", "ADA-USD", "AVAX-USD",
+    "XRP-USD", "XLM-USD", "LINK-USD",
+    "DOGE-USD", "PEPE-USD", "SHIB-USD"
+]
 CAPITAL_PHP = st.sidebar.number_input("War Chest (PHP)", value=50000.0, step=5000.0)
 
 st.write(f"⏳ **Live Scan Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
