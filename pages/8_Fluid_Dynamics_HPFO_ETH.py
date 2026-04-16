@@ -44,7 +44,19 @@ with st.expander("📖 BENDER'S CHEAT SHEET (Paano Basahin ang Hydraulics)", exp
 st.markdown("---")
 
 # --- CONFIGURATION ---
-WATCHLIST = ["BTC-USD", "ETH-USD", "SOL-USD", "XLM-USD", "XRP-USD", "ADA-USD", "DOGE-USD"]
+WATCHLISTS = {
+    "Layer 1 Kings": ["BTC-USD", "ETH-USD", "SOL-USD", "ADA-USD", "AVAX-USD"],
+    "Infra / Utility": ["XRP-USD", "XLM-USD", "LINK-USD"],
+    "Memecoins": ["DOGE-USD", "PEPE-USD", "SHIB-USD"]
+}
+
+selected_group = st.sidebar.selectbox(
+    "Select Crypto Group",
+    list(WATCHLISTS.keys())
+)
+
+WATCHLIST = WATCHLISTS[selected_group]
+}
 CAPITAL_PHP = st.sidebar.number_input("War Chest (PHP)", value=50000.0, step=5000.0)
 FEE_RATE = 0.005 # 0.5% PDAX Fee
 
