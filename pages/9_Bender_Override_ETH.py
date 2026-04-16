@@ -49,7 +49,11 @@ with st.expander("📖 BENDER'S CHEAT SHEET (Ang Bagong Warlord Physics)", expan
 st.markdown("---")
 
 # --- CONFIGURATION ---
-WATCHLIST = ["ETH-USD", "BTC-USD", "SOL-USD", "XLM-USD", "XRP-USD", "ADA-USD", "DOGE-USD"]
+WATCHLIST = [
+    "BTC-USD", "ETH-USD", "SOL-USD", "ADA-USD", "AVAX-USD",
+    "XRP-USD", "XLM-USD", "LINK-USD",
+    "DOGE-USD", "PEPE-USD", "SHIB-USD"
+]
 CAPITAL_PHP = st.sidebar.number_input("War Chest (PHP)", value=560000.0, step=10000.0)
 FEE_RATE = 0.005 # 0.5% PDAX Fee
 
