@@ -46,12 +46,16 @@ st.markdown("---")
 # --- CONFIGURATION ---
 WATCHLIST = st.sidebar.multiselect(
     "Select Coins",
-    ["BTC-USD","ETH-USD","SOL-USD","ADA-USD","AVAX-USD","XRP-USD","XLM-USD","LINK-USD","DOGE-USD","PEPE-USD","SHIB-USD"],
-    default=["BTC-USD","ETH-USD","SOL-USD"]
+    [
+        "BTC-USD", "ETH-USD", "SOL-USD", "ADA-USD", "AVAX-USD",
+        "XRP-USD", "XLM-USD", "LINK-USD",
+        "DOGE-USD", "PEPE-USD", "SHIB-USD"
+    ],
+    default=["BTC-USD", "ETH-USD", "SOL-USD"]
 )
-}
+
 CAPITAL_PHP = st.sidebar.number_input("War Chest (PHP)", value=50000.0, step=5000.0)
-FEE_RATE = 0.005 # 0.5% PDAX Fee
+FEE_RATE = 0.005  # 0.5% PDAX Fee
 
 st.write(f"⏳ **Live Scan Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
