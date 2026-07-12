@@ -223,6 +223,10 @@ pinakamalakas sa PINAKA-ILALIM — kaya doon lumalapat ang mga diagonal.
    ang pressure mismo ang nagpapahigpit ng truss!
 7. **BAKLAS:** pukpukin ang mga kalso → laglag ang braces →
    hilahin ang panels sa susunod na bay. **ZERO PAKO!**
+8. Hindi sapat ang internal struts! OBLIGADO")
+magbaon ng kongkretong pako (Concrete Nails) o gumamit ng drill at tox para i-bolt ang 2x2 Bottom Plate
+sa mismong Cured Day-1 Flooring! Kailangang naka-lock ito pababa
+
 """)
 
 # ================= BOM =================
