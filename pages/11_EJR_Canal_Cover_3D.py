@@ -3,12 +3,6 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-st.set_page_config(
-    page_title="EJR Canal Cover 3D",
-    page_icon="🧱",
-    layout="wide",
-)
-
 st.title("EJR Builders — Lined Canal Cover 3D Visualizer")
 st.caption(
     "Angle-bar frame + 16 mm bars B/W + PVC sleeves + sliding 12 mm U-bar lifters"
@@ -80,7 +74,6 @@ C_PVC = "#f0f0f0"
 C_LIFT = "#2f6db3"
 C_NUT = "#1a1a1a"
 C_GROOVE = "#7a7267"
-C_WRONG = "#e03030"
 
 # ============================================================
 # HELPERS
@@ -227,18 +220,13 @@ def lifter(fig, col, lx, oy, oz, raised=0.0):
         C_LIFT, "12mm U-handle"
     )
 
-def full_cover(
-    fig, col, ox, oy, oz,
-    lifter_raised=(0.0, 0.0),
-    color=C_CONC,
-    tag=""
-):
+def full_cover(fig, col, ox, oy, oz, lifter_raised=(0.0, 0.0)):
     box(
         fig, col,
         ox, oy, oz,
         COV_L, COV_W, COV_T,
-        color,
-        f"{tag}Concrete cover",
+        C_CONC,
+        "Concrete cover",
         opacity=slab_opacity
     )
 
@@ -265,7 +253,6 @@ fig = make_subplots(
     horizontal_spacing=0.01,
 )
 
-# Scene 1
 box(
     fig, 1, 0, 0, 0,
     COV_L, COV_W, COV_T,
@@ -279,13 +266,11 @@ grooves(fig, 1, 0, 0, 0)
 for lx in lifter_xs(0):
     lifter(fig, 1, lx, 0, 0, raised=1.00)
 
-# Scene 2
 full_cover(
     fig, 2, 0, 0, 0,
     lifter_raised=(0.0, raised_right),
 )
 
-# Scene 3
 CAN_L = 1.6
 
 for y0, lbl in [
@@ -329,13 +314,10 @@ seated_cover(fig, 3, 0.25, z_seat, "Cover 1")
 seated_cover(fig, 3, 0.25 + COV_W, z_seat, "Cover 2")
 
 axis_style = dict(
-    xaxis_title="x (m)",
-    yaxis_title="y (m)",
-    zaxis_title="z (m)",
     aspectmode="data",
-    xaxis=dict(backgroundcolor="#f5f0e8"),
-    yaxis=dict(backgroundcolor="#efe8dc"),
-    zaxis=dict(backgroundcolor="#e8e0d0"),
+    xaxis=dict(title=dict(text="x (m)"), backgroundcolor="#f5f0e8"),
+    yaxis=dict(title=dict(text="y (m)"), backgroundcolor="#efe8dc"),
+    zaxis=dict(title=dict(text="z (m)"), backgroundcolor="#e8e0d0"),
     camera=dict(eye=dict(x=1.6, y=-1.6, z=1.0)),
 )
 
@@ -348,11 +330,12 @@ fig.update_layout(
     title_text="EJR Concrete Canal Cover — Angle Bar Assembly",
 )
 
-st.plotly_chart(fig, use_container_width=True)
+try:
+    st.plotly_chart(fig, use_container_width=True)
+except Exception as exc:
+    st.error("3D renderer failed. Reload the page or check the app logs.")
+    st.exception(exc)
 
-# ============================================================
-# SUMMARY CARDS
-# ============================================================
 c1, c2, c3, c4 = st.columns(4)
 
 c1.metric("Cover Size", f"{COV_L:.2f} × {COV_W:.2f} × {COV_T:.2f} m")
