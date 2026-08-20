@@ -1,0 +1,60 @@
+name: Bender Scheduled Alerts
+
+on:
+  workflow_dispatch:
+    inputs:
+      scan_mode:
+        description: "Manual test mode"
+        required: true
+        default: "MORNING"
+        type: choice
+        options:
+          - MORNING
+          - NIGHT
+
+  schedule:
+    # 8:10 AM Philippines = 00:10 UTC
+    - cron: "10 0 * * *"
+
+    # 10:00 PM Philippines = 14:00 UTC
+    - cron: "0 14 * * *"
+
+jobs:
+  bender-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install yfinance pandas numpy requests
+
+      - name: Determine scan mode
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "SCAN_MODE=${{ inputs.scan_mode }}" >> "$GITHUB_ENV"
+          elif [ "${{ github.event.schedule }}" = "10 0 * * *" ]; then
+            echo "SCAN_MODE=MORNING" >> "$GITHUB_ENV"
+          elif [ "${{ github.event.schedule }}" = "0 14 * * *" ]; then
+            echo "SCAN_MODE=NIGHT" >> "$GITHUB_ENV"
+          else
+            echo "SCAN_MODE=MANUAL" >> "$GITHUB_ENV"
+          fi
+
+      - name: Run Bender
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          CAPITAL_PHP: "560000"
+        run: |
+          python scheduled_scan.py
