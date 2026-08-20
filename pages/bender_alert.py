@@ -1,322 +1,148 @@
 # ==============================================================================
-# MODULE 9: THE BENDER OVERRIDE (E.S.V.E)
-# Telegram Secrets + Diagnostics + Anti-Spam Version
+# BENDER SCHEDULED MARKET SCANNER
+# Runs without Streamlit.
+#
+# MORNING:
+#   8:10 AM Asia/Manila
+#   Uses the latest COMPLETED daily candle.
+#
+# NIGHT:
+#   10:00 PM Asia/Manila
+#   Uses the current/latest daily data as an intraday risk check.
+#
+# Telegram:
+#   Sends ONE consolidated report per scheduled run.
 # ==============================================================================
 
-import warnings
-from datetime import datetime
+import os
+import sys
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
 import requests
-import streamlit as st
 import yfinance as yf
 
-warnings.filterwarnings("ignore")
-
-# ==============================================================================
-# PAGE SETTINGS
-# ==============================================================================
-st.set_page_config(
-    page_title="Bender Override (E.S.V.E)",
-    layout="wide"
-)
-
-st.title("🛢️ MODULE 9: THE BENDER OVERRIDE (E.S.V.E)")
-st.markdown(
-    "**Powered by Warlord Jed Racho x Chaotic Genius Engine** | "
-    "Ethereum-Specific Viscosity Engine"
-)
-st.info(
-    "💡 **LOGIC:** 7-Day Velocity + Reynolds-style flow + HPFO Z pressure. "
-    "BUY/EXIT alerts can be sent to Telegram. Signal engine lamang ito; "
-    "walang automatic trade execution."
-)
-
-# ==============================================================================
-# CHEAT SHEET
-# ==============================================================================
-with st.expander(
-    "📖 BENDER'S CHEAT SHEET (Ang Bagong Warlord Physics)",
-    expanded=True
-):
-    c1, c2, c3, c4 = st.columns(4)
-
-    with c1:
-        st.markdown("### 1. HPFO Z")
-        st.write("🌊 **> +1.65:** Strong BUY pressure")
-        st.write("💧 **< 0.0:** EXIT pressure")
-
-    with c2:
-        st.markdown("### 2. REYNOLDS")
-        st.write("🟢 **> 0.9:** Flow threshold passed")
-        st.write("🔴 **< 0.9:** Weak / noisy flow")
-
-    with c3:
-        st.markdown("### 3. VELOCITY")
-        st.write("🚀 **> 0.015:** Positive 7-day velocity")
-        st.write("💥 **< 0.0:** Emergency exit trigger")
-
-    with c4:
-        st.markdown("### 4. THE VALVE")
-        st.write("🚰 **OPEN VALVE:** BUY")
-        st.write("⛔ **EMERGENCY EXIT:** SELL / EXIT")
-        st.write("⏳ **MAINTAIN PRESSURE:** HOLD")
-
-st.markdown("---")
 
 # ==============================================================================
 # CONFIGURATION
 # ==============================================================================
-WATCHLIST = [
-    "BTC-USD", "ETH-USD", "SOL-USD", "ADA-USD", "AVAX-USD",
-    "XRP-USD", "XLM-USD", "LINK-USD", "DOGE-USD",
-    "PEPE-USD", "SHIB-USD"
-]
+MANILA_TZ = ZoneInfo("Asia/Manila")
 
-CAPITAL_PHP = st.sidebar.number_input(
-    "War Chest (PHP)",
-    min_value=0.0,
-    value=560000.0,
-    step=10000.0
-)
+WATCHLIST = [
+    "BTC-USD",
+    "ETH-USD",
+    "SOL-USD",
+    "ADA-USD",
+    "AVAX-USD",
+    "XRP-USD",
+    "XLM-USD",
+    "LINK-USD",
+    "DOGE-USD",
+    "PEPE-USD",
+    "SHIB-USD",
+]
 
 FEE_RATE = 0.005
 FRICTION_BARRIER = FEE_RATE * 3.0  # 0.015
 
-AUTO_TELEGRAM = st.sidebar.toggle(
-    "📲 Auto Telegram BUY/EXIT alerts",
-    value=True
-)
+# Capital can be overridden with a GitHub Actions environment variable.
+CAPITAL_PHP = float(os.getenv("CAPITAL_PHP", "560000"))
 
-st.write(
-    f"⏳ **Live Scan Time:** "
-    f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-)
-
-# ==============================================================================
-# STREAMLIT SECRET HELPERS
-# ==============================================================================
-def read_secret(*names):
-    """
-    Return the first non-empty secret among the supplied names.
-
-    This intentionally supports BOTH:
-      TELEGRAM_BOT_TOKEN  <- preferred new name
-      TELEGRAM_TOKEN      <- Brother Eye legacy name
-    """
-    for name in names:
-        try:
-            value = st.secrets.get(name)
-            if value:
-                return str(value).strip()
-        except Exception:
-            pass
-
-    return None
-
-
-def get_telegram_credentials():
-    token = read_secret(
-        "TELEGRAM_BOT_TOKEN",
-        "TELEGRAM_TOKEN"
-    )
-    chat_id = read_secret(
-        "TELEGRAM_CHAT_ID"
-    )
-    return token, chat_id
+# Allocation safeguards:
+# - Original Bender rule: max 25% per BUY asset
+# - New safeguard: total allocation can never exceed 100% of capital
+MAX_PER_ASSET_PCT = 25.0
+MAX_TOTAL_ALLOCATION_PCT = 100.0
 
 
 # ==============================================================================
-# TELEGRAM AGENT
+# HELPERS
 # ==============================================================================
-def send_warlord_telegram_alert(
-    coin,
-    price,
-    hpfo_z,
-    reynolds,
-    velocity,
-    action,
-    allocation,
-    comment
-):
-    token, chat_id = get_telegram_credentials()
-
-    if not token:
-        return False, (
-            "Walang Telegram bot token. "
-            "Maglagay ng TELEGRAM_BOT_TOKEN o TELEGRAM_TOKEN sa Streamlit Secrets."
-        )
-
-    if not chat_id:
-        return False, (
-            "Walang TELEGRAM_CHAT_ID sa Streamlit Secrets."
-        )
-
-    if "BUY" in action:
-        emoji = "🌊💸🚀"
-        vibe = (
-            f"GAGO GISING!!! BUY signal sa {coin}. "
-            f"Malakas ang pressure + flow + velocity."
-        )
-
-    elif "EXIT" in action:
-        emoji = "🚨📉🛑"
-        vibe = (
-            f"PUTANGINA, EMERGENCY EXIT signal sa {coin}. "
-            f"Humina ang flow ayon sa engine."
-        )
-
-    else:
-        emoji = "🚰🛌"
-        vibe = (
-            f"HOLD muna sa {coin}. "
-            f"Wala pang kumpletong valve confirmation."
-        )
-
-    message = (
-        f"{emoji} WARLORD QUANT AGENT ALERT {emoji}\n\n"
-        f"{vibe}\n\n"
-        f"📊 Asset: {coin}\n"
-        f"💰 Live Price: {price}\n"
-        f"📈 HPFO Z: {hpfo_z}\n"
-        f"🌊 Reynolds: {reynolds}\n"
-        f"🏎️ Velocity: {velocity}\n"
-        f"⚙️ Command: {action}\n"
-        f"💼 Allocation: {allocation}\n\n"
-        f"💡 Commentary: {comment}\n\n"
-        f"⚠️ Signal alert lamang ito. Walang automatic trade."
-    )
-
-    # CORRECT Telegram Bot API endpoint
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-
-    payload = {
-        "chat_id": chat_id,
-        "text": message,
-        "disable_web_page_preview": True
-    }
-
-    try:
-        response = requests.post(
-            url,
-            json=payload,
-            timeout=15
-        )
-
-        # Try to expose Telegram's exact response if something fails.
-        try:
-            data = response.json()
-        except ValueError:
-            data = {}
-
-        if response.status_code != 200:
-            description = data.get(
-                "description",
-                response.text[:300]
-            )
-            return False, (
-                f"Telegram HTTP {response.status_code}: {description}"
-            )
-
-        if not data.get("ok", False):
-            return False, (
-                f"Telegram API error: {data}"
-            )
-
-        return True, "Telegram alert sent successfully."
-
-    except requests.RequestException as exc:
-        return False, (
-            f"Network / Telegram request error: {exc}"
-        )
+def require_env(name: str) -> str:
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(f"Missing required environment variable: {name}")
+    return value.strip()
 
 
-# ==============================================================================
-# TELEGRAM DIAGNOSTICS
-# ==============================================================================
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 🔧 Telegram Diagnostic")
+def get_scan_mode() -> str:
+    mode = os.getenv("SCAN_MODE", "MANUAL").strip().upper()
 
-telegram_token, telegram_chat_id = get_telegram_credentials()
+    if mode not in {"MORNING", "NIGHT", "MANUAL"}:
+        mode = "MANUAL"
 
-if telegram_token:
-    st.sidebar.success("✅ Bot Token detected")
-else:
-    st.sidebar.error("❌ Bot Token missing")
-
-if telegram_chat_id:
-    st.sidebar.success("✅ Chat ID detected")
-else:
-    st.sidebar.error("❌ Chat ID missing")
-
-if st.sidebar.button(
-    "📨 TEST TELEGRAM NOW",
-    use_container_width=True
-):
-    ok, status = send_warlord_telegram_alert(
-        coin="BENDER SYSTEM TEST",
-        price="N/A",
-        hpfo_z="N/A",
-        reynolds="N/A",
-        velocity="N/A",
-        action="⏳ TEST MESSAGE",
-        allocation="N/A",
-        comment=(
-            "Kung nababasa mo ito sa Telegram, "
-            "buhay ang Streamlit → Telegram connection."
-        )
-    )
-
-    if ok:
-        st.sidebar.success("✅ " + status)
-    else:
-        st.sidebar.error("❌ " + status)
+    return mode
 
 
-# ==============================================================================
-# DATA HELPERS
-# ==============================================================================
-@st.cache_data(ttl=300, show_spinner=False)
-def download_market_data(ticker):
-    df = yf.download(
-        ticker,
-        period="4y",
-        interval="1d",
-        progress=False,
-        auto_adjust=True,
-        threads=False
-    )
-
-    if df is None or df.empty:
-        return pd.DataFrame()
-
-    df = df.copy()
-
+def normalize_yfinance_columns(df: pd.DataFrame) -> pd.DataFrame:
     if isinstance(df.columns, pd.MultiIndex):
         if "Close" in df.columns.get_level_values(0):
             df.columns = df.columns.get_level_values(0)
         elif "Close" in df.columns.get_level_values(-1):
             df.columns = df.columns.get_level_values(-1)
 
-    if "Close" not in df.columns or "Volume" not in df.columns:
+    return df
+
+
+def download_market_data(ticker: str) -> pd.DataFrame:
+    df = yf.download(
+        ticker,
+        period="4y",
+        interval="1d",
+        progress=False,
+        auto_adjust=True,
+        threads=False,
+    )
+
+    if df is None or df.empty:
         return pd.DataFrame()
+
+    df = normalize_yfinance_columns(df.copy())
+
+    required = {"Close", "Volume"}
+    if not required.issubset(set(df.columns)):
+        return pd.DataFrame()
+
+    df = df.dropna(subset=["Close"]).copy()
 
     return df
 
 
-def engineer_eth_hydrodynamics(df):
+def index_date_utc(index_value):
+    ts = pd.Timestamp(index_value)
+
+    if ts.tzinfo is None:
+        return ts.date()
+
+    return ts.tz_convert("UTC").date()
+
+
+def use_completed_daily_candle_only(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    At the morning scan, avoid using a newly-opened partial daily candle.
+
+    If Yahoo Finance already includes a row for the current UTC date,
+    drop that row and use the previous completed daily bar.
+    """
+    if df.empty:
+        return df
+
+    today_utc = datetime.now(timezone.utc).date()
+    last_row_date = index_date_utc(df.index[-1])
+
+    if last_row_date >= today_utc and len(df) > 1:
+        return df.iloc[:-1].copy()
+
+    return df
+
+
+def engineer_eth_hydrodynamics(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
-    close = pd.to_numeric(
-        df["Close"],
-        errors="coerce"
-    )
-
-    volume = pd.to_numeric(
-        df["Volume"],
-        errors="coerce"
-    )
+    close = pd.to_numeric(df["Close"], errors="coerce")
+    volume = pd.to_numeric(df["Volume"], errors="coerce")
 
     volume = (
         volume
@@ -325,23 +151,20 @@ def engineer_eth_hydrodynamics(df):
         .fillna(1.0)
     )
 
-    log_close = np.log(
-        close.where(close > 0)
-    )
+    log_close = np.log(close.where(close > 0))
 
+    # 7-day log-price velocity
     velocity = log_close.diff(7)
 
-    rho = (
-        volume
-        / volume.rolling(50).mean()
-    )
-
+    # Relative volume density
+    rho = volume / volume.rolling(50).mean()
     rho = (
         rho
         .replace([np.inf, -np.inf], np.nan)
         .fillna(1.0)
     )
 
+    # Bender-style dynamic pressure
     dynamic_pressure = (
         0.5
         * rho
@@ -349,6 +172,7 @@ def engineer_eth_hydrodynamics(df):
         * velocity.abs()
     )
 
+    # 20-day volatility / "viscosity"
     daily_ret = log_close.diff(1)
 
     viscosity = (
@@ -364,16 +188,11 @@ def engineer_eth_hydrodynamics(df):
         .fillna(1e-8)
     )
 
-    reynolds = (
-        velocity.abs()
-        / viscosity
-    )
+    # Reynolds-style metric
+    reynolds = velocity.abs() / viscosity
 
-    q_mean = (
-        dynamic_pressure
-        .rolling(50)
-        .mean()
-    )
+    # HPFO Z pressure score
+    q_mean = dynamic_pressure.rolling(50).mean()
 
     q_std = (
         dynamic_pressure
@@ -395,7 +214,7 @@ def engineer_eth_hydrodynamics(df):
     return df
 
 
-def latest_valid(series):
+def latest_valid(series: pd.Series):
     clean = (
         pd.to_numeric(series, errors="coerce")
         .replace([np.inf, -np.inf], np.nan)
@@ -408,344 +227,474 @@ def latest_valid(series):
     return float(clean.iloc[-1])
 
 
-def classify_signal(
-    hpfo,
-    reynolds,
-    velocity
-):
-    if (
-        hpfo is None
-        or reynolds is None
-        or velocity is None
-    ):
-        return (
-            "⚠️ INSUFFICIENT DATA",
-            "₱0.00",
-            "Kulang ang latest indicator data."
-        )
+def calculate_rsi(close: pd.Series, window: int = 14):
+    delta = close.diff()
+
+    gain = (
+        delta
+        .clip(lower=0)
+        .rolling(window)
+        .mean()
+    )
+
+    loss = (
+        -delta
+        .clip(upper=0)
+        .rolling(window)
+        .mean()
+    )
+
+    rs = gain / (loss + 1e-9)
+
+    return 100 - (100 / (1 + rs))
+
+
+def classify_signal(hpfo, reynolds, velocity):
+    if hpfo is None or reynolds is None or velocity is None:
+        return "DATA"
 
     if (
         hpfo > 1.65
         and reynolds > 0.9
         and velocity > FRICTION_BARRIER
     ):
-        return (
-            "🚰 OPEN VALVE (BUY)",
-            f"₱{CAPITAL_PHP * 0.25:,.2f} (25%)",
-            "Strong pressure + flow + velocity confirmation."
-        )
+        return "BUY"
 
-    if (
-        velocity < 0
-        or hpfo < 0
-    ):
-        return (
-            "⛔ EMERGENCY EXIT",
-            "₱0.00",
-            "Negative velocity o negative HPFO pressure."
-        )
+    if velocity < 0 or hpfo < 0:
+        return "EXIT"
 
-    return (
-        "⏳ MAINTAIN PRESSURE",
-        "Hold Status",
-        "Wala pang kumpletong BUY o EXIT confirmation."
+    return "HOLD"
+
+
+# ==============================================================================
+# SCAN
+# ==============================================================================
+def scan_one_asset(ticker: str, scan_mode: str) -> dict:
+    df = download_market_data(ticker)
+
+    if df.empty or len(df) < 200:
+        raise RuntimeError("Kulang o walang market data.")
+
+    # Morning report should rely on a fully completed daily candle.
+    if scan_mode == "MORNING":
+        df = use_completed_daily_candle_only(df)
+
+    if len(df) < 200:
+        raise RuntimeError("Kulang ang completed daily data.")
+
+    df = engineer_eth_hydrodynamics(df)
+
+    close = pd.to_numeric(df["Close"], errors="coerce")
+
+    current_price = latest_valid(close)
+    hpfo = latest_valid(df["HPFO_Z"])
+    reynolds = latest_valid(df["Reynolds"])
+    velocity = latest_valid(df["Velocity"])
+
+    ma200 = latest_valid(
+        close.rolling(200).mean()
     )
 
-
-# ==============================================================================
-# ANTI-SPAM MEMORY FOR CURRENT STREAMLIT SESSION
-# ==============================================================================
-if "sent_alert_keys" not in st.session_state:
-    st.session_state.sent_alert_keys = set()
-
-if st.sidebar.button(
-    "♻️ Reset alert memory",
-    use_container_width=True
-):
-    st.session_state.sent_alert_keys = set()
-    st.sidebar.info(
-        "Alert memory reset. BUY/EXIT signals may send again."
+    rsi = latest_valid(
+        calculate_rsi(close)
     )
 
+    if current_price is None:
+        raise RuntimeError("Walang valid latest price.")
+
+    if ma200 is None:
+        ma200 = current_price
+
+    dist_pct = (
+        ((current_price - ma200) / ma200) * 100
+        if ma200 != 0
+        else np.nan
+    )
+
+    signal = classify_signal(
+        hpfo=hpfo,
+        reynolds=reynolds,
+        velocity=velocity,
+    )
+
+    bar_date = str(pd.Timestamp(df.index[-1]).date())
+
+    return {
+        "ticker": ticker,
+        "coin": ticker.replace("-USD", ""),
+        "price": current_price,
+        "ma200": ma200,
+        "dist_pct": dist_pct,
+        "rsi": rsi,
+        "hpfo": hpfo,
+        "reynolds": reynolds,
+        "velocity": velocity,
+        "signal": signal,
+        "bar_date": bar_date,
+        "allocation_pct": 0.0,
+        "allocation_php": 0.0,
+    }
+
+
+def apply_portfolio_allocation(results: list[dict]) -> None:
+    """
+    Original rule: 25% per BUY.
+
+    Problem:
+    5+ simultaneous BUY signals would exceed 100% of the war chest.
+
+    Fix:
+    allocation_pct = min(25%, 100% / number_of_BUYs)
+
+    Examples:
+      1 BUY  -> 25% allocated
+      2 BUYs -> 25% each = 50%
+      4 BUYs -> 25% each = 100%
+      8 BUYs -> 12.5% each = 100%
+    """
+    buys = [
+        row
+        for row in results
+        if row["signal"] == "BUY"
+    ]
+
+    if not buys:
+        return
+
+    allocation_pct = min(
+        MAX_PER_ASSET_PCT,
+        MAX_TOTAL_ALLOCATION_PCT / len(buys),
+    )
+
+    allocation_php = (
+        CAPITAL_PHP
+        * allocation_pct
+        / 100.0
+    )
+
+    for row in buys:
+        row["allocation_pct"] = allocation_pct
+        row["allocation_php"] = allocation_php
+
 
 # ==============================================================================
-# LIVE SIGNAL DASHBOARD
+# TELEGRAM MESSAGE
 # ==============================================================================
-st.subheader(
-    "🎯 LIVE HYDRAULIC SIGNALS "
-    "(Bender Override Status)"
-)
+def fmt(value, decimals=2, signed=False):
+    if value is None:
+        return "N/A"
 
-live_results = []
-errors_log = []
+    try:
+        if not np.isfinite(value):
+            return "N/A"
+    except TypeError:
+        return "N/A"
 
-with st.spinner(
-    "🤖 Bender is scanning the matrix..."
-):
+    if signed:
+        return f"{value:+.{decimals}f}"
+
+    return f"{value:.{decimals}f}"
+
+
+def build_report(
+    results: list[dict],
+    errors: list[str],
+    scan_mode: str,
+) -> str:
+    now_manila = datetime.now(MANILA_TZ)
+
+    if scan_mode == "MORNING":
+        title = "☀️ BENDER DAILY WARLORD SCAN"
+        subtitle = (
+            "Completed daily-candle scan "
+            "(pangunahing signal ng araw)"
+        )
+    elif scan_mode == "NIGHT":
+        title = "🌙 BENDER NIGHT RISK CHECK"
+        subtitle = (
+            "Intraday / partial-candle check "
+            "(pangalawang risk scan)"
+        )
+    else:
+        title = "🧪 BENDER MANUAL SCAN"
+        subtitle = "Manual test run"
+
+    buys = [
+        row
+        for row in results
+        if row["signal"] == "BUY"
+    ]
+
+    exits = [
+        row
+        for row in results
+        if row["signal"] == "EXIT"
+    ]
+
+    holds = [
+        row
+        for row in results
+        if row["signal"] == "HOLD"
+    ]
+
+    data_rows = [
+        row
+        for row in results
+        if row["signal"] == "DATA"
+    ]
+
+    lines = [
+        title,
+        now_manila.strftime("%Y-%m-%d %I:%M %p PHT"),
+        subtitle,
+        "",
+    ]
+
+    # --------------------------------------------------------------------------
+    # BUY
+    # --------------------------------------------------------------------------
+    lines.append("🚰 BUY / OPEN VALVE")
+
+    if buys:
+        for row in buys:
+            lines.append(
+                f"{row['coin']}: "
+                f"HPFO {fmt(row['hpfo'])} | "
+                f"Rey {fmt(row['reynolds'])} | "
+                f"Vel {fmt(row['velocity'], 3)} | "
+                f"₱{row['allocation_php']:,.0f} "
+                f"({row['allocation_pct']:.2f}%)"
+            )
+    else:
+        lines.append("None")
+
+    # --------------------------------------------------------------------------
+    # EXIT
+    # --------------------------------------------------------------------------
+    lines.extend([
+        "",
+        "⛔ EMERGENCY EXIT",
+    ])
+
+    if exits:
+        for row in exits:
+            lines.append(
+                f"{row['coin']}: "
+                f"HPFO {fmt(row['hpfo'])} | "
+                f"Rey {fmt(row['reynolds'])} | "
+                f"Vel {fmt(row['velocity'], 3)}"
+            )
+    else:
+        lines.append("None")
+
+    # --------------------------------------------------------------------------
+    # HOLD
+    # --------------------------------------------------------------------------
+    lines.extend([
+        "",
+        "⏳ HOLD / MAINTAIN PRESSURE",
+    ])
+
+    if holds:
+        lines.append(
+            ", ".join(
+                row["coin"]
+                for row in holds
+            )
+        )
+    else:
+        lines.append("None")
+
+    # --------------------------------------------------------------------------
+    # SUMMARY
+    # --------------------------------------------------------------------------
+    total_alloc_php = sum(
+        row["allocation_php"]
+        for row in buys
+    )
+
+    total_alloc_pct = sum(
+        row["allocation_pct"]
+        for row in buys
+    )
+
+    lines.extend([
+        "",
+        "💼 PORTFOLIO SUMMARY",
+        f"War Chest: ₱{CAPITAL_PHP:,.0f}",
+        (
+            f"Planned BUY allocation: "
+            f"₱{total_alloc_php:,.0f} "
+            f"({total_alloc_pct:.2f}%)"
+        ),
+        (
+            f"BUY {len(buys)} | "
+            f"HOLD {len(holds)} | "
+            f"EXIT {len(exits)}"
+        ),
+    ])
+
+    if results:
+        dates = sorted(
+            set(
+                row["bar_date"]
+                for row in results
+            )
+        )
+
+        lines.append(
+            "Market bar date(s): "
+            + ", ".join(dates)
+        )
+
+    if data_rows:
+        lines.append(
+            f"Insufficient-data assets: "
+            f"{', '.join(row['coin'] for row in data_rows)}"
+        )
+
+    if errors:
+        lines.extend([
+            "",
+            "⚠️ DATA WARNINGS",
+            ", ".join(errors),
+        ])
+
+    lines.extend([
+        "",
+        (
+            "⚠️ Experimental signal engine lamang. "
+            "Walang automatic trade execution."
+        ),
+    ])
+
+    return "\n".join(lines)
+
+
+def send_telegram(message: str) -> None:
+    token = require_env(
+        "TELEGRAM_BOT_TOKEN"
+    )
+
+    chat_id = require_env(
+        "TELEGRAM_CHAT_ID"
+    )
+
+    url = (
+        f"https://api.telegram.org/"
+        f"bot{token}/sendMessage"
+    )
+
+    response = requests.post(
+        url,
+        json={
+            "chat_id": chat_id,
+            "text": message,
+            "disable_web_page_preview": True,
+        },
+        timeout=20,
+    )
+
+    try:
+        data = response.json()
+    except ValueError:
+        data = {}
+
+    if response.status_code != 200:
+        description = data.get(
+            "description",
+            response.text[:500],
+        )
+
+        raise RuntimeError(
+            f"Telegram HTTP "
+            f"{response.status_code}: "
+            f"{description}"
+        )
+
+    if not data.get("ok", False):
+        raise RuntimeError(
+            f"Telegram API error: {data}"
+        )
+
+
+# ==============================================================================
+# MAIN
+# ==============================================================================
+def main():
+    scan_mode = get_scan_mode()
+
+    print(
+        f"Starting Bender scheduled scan. "
+        f"Mode={scan_mode}"
+    )
+
+    results = []
+    errors = []
+
     for ticker in WATCHLIST:
         try:
-            df = download_market_data(
-                ticker
+            row = scan_one_asset(
+                ticker=ticker,
+                scan_mode=scan_mode,
             )
 
-            if df.empty or len(df) < 200:
-                errors_log.append(
-                    f"{ticker}: kulang o walang market data."
-                )
-                continue
+            results.append(row)
 
-            df = engineer_eth_hydrodynamics(
-                df
+            print(
+                f"{row['coin']}: "
+                f"{row['signal']} | "
+                f"HPFO={fmt(row['hpfo'])} | "
+                f"REY={fmt(row['reynolds'])} | "
+                f"VEL={fmt(row['velocity'], 3)}"
             )
 
-            current_price = latest_valid(
-                df["Close"]
-            )
-
-            if current_price is None:
-                errors_log.append(
-                    f"{ticker}: walang valid latest price."
-                )
-                continue
-
-            ma_200 = (
-                df["Close"]
-                .rolling(200)
-                .mean()
-            )
-
-            ma200_val = latest_valid(
-                ma_200
-            )
-
-            if ma200_val is None:
-                ma200_val = current_price
-
-            dist_pct = (
-                (
-                    current_price
-                    - ma200_val
-                )
-                / ma200_val
-            ) * 100
-
-            delta = (
-                df["Close"]
-                .diff()
-            )
-
-            gain = (
-                delta
-                .clip(lower=0)
-                .rolling(14)
-                .mean()
-            )
-
-            loss = (
-                -delta
-                .clip(upper=0)
-                .rolling(14)
-                .mean()
-            )
-
-            rs = (
-                gain
-                / (loss + 1e-9)
-            )
-
-            rsi = (
-                100
-                - (100 / (1 + rs))
-            )
-
-            rsi_val = latest_valid(
-                rsi
-            )
-
-            vel = latest_valid(
-                df["Velocity"]
-            )
-
-            rey = latest_valid(
-                df["Reynolds"]
-            )
-
-            hpfo = latest_valid(
-                df["HPFO_Z"]
-            )
-
-            action, allocation, comment = (
-                classify_signal(
-                    hpfo,
-                    rey,
-                    vel
-                )
-            )
-
-            coin_name = ticker.replace(
+        except Exception as exc:
+            coin = ticker.replace(
                 "-USD",
                 ""
             )
 
-            # --------------------------------------------------------------
-            # AUTO TELEGRAM BUY / EXIT
-            # --------------------------------------------------------------
-            if (
-                AUTO_TELEGRAM
-                and (
-                    "BUY" in action
-                    or "EXIT" in action
-                )
-            ):
-                # One notification per coin/action/day
-                alert_key = (
-                    datetime.now()
-                    .strftime("%Y-%m-%d"),
-                    coin_name,
-                    action
-                )
-
-                if (
-                    alert_key
-                    not in st.session_state.sent_alert_keys
-                ):
-                    ok, status = (
-                        send_warlord_telegram_alert(
-                            coin=coin_name,
-                            price=f"${current_price:,.2f}",
-                            hpfo_z=(
-                                round(hpfo, 2)
-                                if hpfo is not None
-                                else "N/A"
-                            ),
-                            reynolds=(
-                                round(rey, 2)
-                                if rey is not None
-                                else "N/A"
-                            ),
-                            velocity=(
-                                round(vel, 3)
-                                if vel is not None
-                                else "N/A"
-                            ),
-                            action=action,
-                            allocation=allocation,
-                            comment=comment
-                        )
-                    )
-
-                    if ok:
-                        st.session_state.sent_alert_keys.add(
-                            alert_key
-                        )
-                    else:
-                        errors_log.append(
-                            f"{coin_name}: {status}"
-                        )
-
-            live_results.append({
-                "COIN": coin_name,
-                "PRICE ($)": f"${current_price:,.2f}",
-                "MA200 ($)": f"${ma200_val:,.2f}",
-                "DIST %": f"{dist_pct:+.2f}%",
-                "RSI": (
-                    round(rsi_val, 1)
-                    if rsi_val is not None
-                    else "N/A"
-                ),
-                "HPFO Z": (
-                    round(hpfo, 2)
-                    if hpfo is not None
-                    else "N/A"
-                ),
-                "REYNOLDS": (
-                    round(rey, 2)
-                    if rey is not None
-                    else "N/A"
-                ),
-                "VELOCITY": (
-                    round(vel, 3)
-                    if vel is not None
-                    else "N/A"
-                ),
-                "ACTION 📢": action,
-                "ALLOCATION": allocation,
-                "COMMENTARY 💬": comment
-            })
-
-        except Exception as exc:
-            errors_log.append(
-                f"{ticker}: "
-                f"{type(exc).__name__}: {exc}"
+            error_text = (
+                f"{coin}: "
+                f"{type(exc).__name__}"
             )
 
-
-if live_results:
-    df_live = pd.DataFrame(
-        live_results
-    )
-
-    def color_coding(val):
-        if isinstance(val, str):
-            if "🚰" in val:
-                return (
-                    "color: #00ffcc; "
-                    "font-weight: bold;"
-                )
-
-            if "⛔" in val:
-                return (
-                    "color: #ff4d4d; "
-                    "font-weight: bold;"
-                )
-
-            if "⏳" in val:
-                return (
-                    "color: #ffcc00;"
-                )
-
-        return ""
-
-    st.dataframe(
-        df_live.style.map(
-            color_coding
-        ),
-        use_container_width=True,
-        hide_index=True
-    )
-
-else:
-    st.error(
-        "Market Data Unavailable."
-    )
-
-
-if errors_log:
-    with st.expander(
-        "⚠️ Scan / Telegram errors",
-        expanded=False
-    ):
-        for err in errors_log:
-            st.write(
-                f"- {err}"
+            errors.append(
+                error_text
             )
 
+            print(
+                f"ERROR {ticker}: {exc}",
+                file=sys.stderr,
+            )
 
-# ==============================================================================
-# BACKTEST PLACEHOLDER
-# ==============================================================================
-st.markdown("---")
-st.subheader(
-    "📊 4-YEAR BACKTEST: "
-    "BENDER OVERRIDE "
-    "(0.5% Fee Imposed)"
-)
-
-with st.expander(
-    "Tignan ang 4-Year Lab Report",
-    expanded=False
-):
-    st.write(
-        "Backtest temporarily disabled sa notification build "
-        "para mas mabilis ang live scan."
+    apply_portfolio_allocation(
+        results
     )
+
+    report = build_report(
+        results=results,
+        errors=errors,
+        scan_mode=scan_mode,
+    )
+
+    print("\n--- TELEGRAM REPORT ---")
+    print(report)
+    print("--- END REPORT ---\n")
+
+    # Even if one or two assets fail, send the remaining useful report.
+    if not results:
+        raise RuntimeError(
+            "No market assets were scanned successfully."
+        )
+
+    send_telegram(report)
+
+    print(
+        "Telegram report sent successfully."
+    )
+
+
+if __name__ == "__main__":
+    main()
