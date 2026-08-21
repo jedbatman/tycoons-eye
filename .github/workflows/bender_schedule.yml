@@ -19,22 +19,22 @@ on:
           - NIGHT
 
   # ============================================================
-  # AUTOMATIC SCHEDULE
-  # Philippines = UTC + 8
+  # TEMPORARY AUTOMATIC TEST
+  #
+  # Tatakbo kada 5 minutes.
+  # Example:
+  # 10:05, 10:10, 10:15, 10:20...
+  #
+  # PAG MAY ISANG AUTOMATIC TELEGRAM MESSAGE NA DUMATING,
+  # AALISIN NATIN ITO AT IBABALIK SA 8:17 AM / 10:17 PM.
   # ============================================================
   schedule:
+    - cron: "*/5 * * * *"
 
-    # 🧪 TEMPORARY AUTOMATION TEST
-    # 9:50 AM Philippines = 01:50 UTC
-    - cron: "50 1 * * *"
 
-    # ☀️ MAIN DAILY REPORT
-    # 8:17 AM Philippines = 00:17 UTC
-    - cron: "17 0 * * *"
-
-    # 🌙 NIGHT RISK CHECK
-    # 10:17 PM Philippines = 14:17 UTC
-    - cron: "17 14 * * *"
+concurrency:
+  group: bender-scheduled-scan
+  cancel-in-progress: false
 
 
 jobs:
@@ -53,14 +53,14 @@ jobs:
       # 1. KUNIN ANG FILES NG REPOSITORY
       # ========================================================
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
 
       # ========================================================
       # 2. IHANDA ANG PYTHON
       # ========================================================
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
@@ -75,45 +75,27 @@ jobs:
 
 
       # ========================================================
-      # 4. ALAMIN KUNG ANONG URI NG SCAN
+      # 4. DETERMINE SCAN MODE
       # ========================================================
       - name: Determine scan mode
         shell: bash
-
         run: |
 
           echo "========================================"
-          echo "EVENT NAME: ${{ github.event_name }}"
-          echo "SCHEDULE: ${{ github.event.schedule }}"
+          echo "🤖 BENDER TRIGGER INFORMATION"
+          echo "Event: ${{ github.event_name }}"
+          echo "Schedule: ${{ github.event.schedule }}"
           echo "========================================"
 
-          # MANUAL RUN
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
 
-            echo "Manual GitHub run detected."
+            echo "Manual test detected."
             echo "SCAN_MODE=${{ inputs.scan_mode }}" >> "$GITHUB_ENV"
 
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
 
-          # 🧪 TEMPORARY 9:50 AM AUTOMATIC TEST
-          elif [ "${{ github.event.schedule }}" = "50 1 * * *" ]; then
-
-            echo "AUTOMATIC 9:50 AM TEST TRIGGERED."
+            echo "✅ AUTOMATIC CRON TRIGGER DETECTED."
             echo "SCAN_MODE=MORNING" >> "$GITHUB_ENV"
-
-
-          # ☀️ NORMAL 8:17 AM REPORT
-          elif [ "${{ github.event.schedule }}" = "17 0 * * *" ]; then
-
-            echo "Automatic 8:17 AM MORNING scan detected."
-            echo "SCAN_MODE=MORNING" >> "$GITHUB_ENV"
-
-
-          # 🌙 NORMAL 10:17 PM REPORT
-          elif [ "${{ github.event.schedule }}" = "17 14 * * *" ]; then
-
-            echo "Automatic 10:17 PM NIGHT scan detected."
-            echo "SCAN_MODE=NIGHT" >> "$GITHUB_ENV"
-
 
           else
 
@@ -124,33 +106,23 @@ jobs:
 
 
       # ========================================================
-      # 5. PATUBUHIN SI BENDER
+      # 5. RUN BENDER
       # ========================================================
       - name: Run Bender scanner
-
         env:
-
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-
           CAPITAL_PHP: "560000"
-
 
         run: |
 
           echo "========================================"
-
           echo "🤖 BENDER IS WAKING UP"
-
           echo "Scan mode: $SCAN_MODE"
-
           echo "========================================"
 
           python scheduled_scan.py
 
           echo "========================================"
-
           echo "✅ BENDER FINISHED SUCCESSFULLY"
-
           echo "========================================"
