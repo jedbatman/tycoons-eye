@@ -1,128 +1,53 @@
-name: Bender Scheduled Alerts
-
-permissions:
-  contents: read
+name: Bender Scheduler Test
 
 on:
-  # ============================================================
-  # MANUAL TEST
-  # ============================================================
   workflow_dispatch:
-    inputs:
-      scan_mode:
-        description: "Manual test mode"
-        required: true
-        default: "MORNING"
-        type: choice
-        options:
-          - MORNING
-          - NIGHT
 
-  # ============================================================
-  # TEMPORARY AUTOMATIC TEST
-  #
-  # Tatakbo kada 5 minutes.
-  # Example:
-  # 10:05, 10:10, 10:15, 10:20...
-  #
-  # PAG MAY ISANG AUTOMATIC TELEGRAM MESSAGE NA DUMATING,
-  # AALISIN NATIN ITO AT IBABALIK SA 8:17 AM / 10:17 PM.
-  # ============================================================
   schedule:
     - cron: "*/5 * * * *"
 
-
-concurrency:
-  group: bender-scheduled-scan
-  cancel-in-progress: false
-
-
 jobs:
-
-  bender-scan:
-
-    name: Run Bender Market Scanner
-
+  scheduler-test:
     runs-on: ubuntu-latest
 
-    timeout-minutes: 15
-
     steps:
-
-      # ========================================================
-      # 1. KUNIN ANG FILES NG REPOSITORY
-      # ========================================================
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-
-      # ========================================================
-      # 2. IHANDA ANG PYTHON
-      # ========================================================
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-
-      # ========================================================
-      # 3. INSTALL DEPENDENCIES
-      # ========================================================
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install yfinance pandas numpy requests
-
-
-      # ========================================================
-      # 4. DETERMINE SCAN MODE
-      # ========================================================
-      - name: Determine scan mode
-        shell: bash
-        run: |
-
-          echo "========================================"
-          echo "🤖 BENDER TRIGGER INFORMATION"
-          echo "Event: ${{ github.event_name }}"
-          echo "Schedule: ${{ github.event.schedule }}"
-          echo "========================================"
-
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-
-            echo "Manual test detected."
-            echo "SCAN_MODE=${{ inputs.scan_mode }}" >> "$GITHUB_ENV"
-
-          elif [ "${{ github.event_name }}" = "schedule" ]; then
-
-            echo "✅ AUTOMATIC CRON TRIGGER DETECTED."
-            echo "SCAN_MODE=MORNING" >> "$GITHUB_ENV"
-
-          else
-
-            echo "Unknown trigger."
-            echo "SCAN_MODE=MANUAL" >> "$GITHUB_ENV"
-
-          fi
-
-
-      # ========================================================
-      # 5. RUN BENDER
-      # ========================================================
-      - name: Run Bender scanner
+      - name: Automatic scheduler heartbeat
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          CAPITAL_PHP: "560000"
 
         run: |
+          python - <<'PY'
+          import os
+          import requests
+          from datetime import datetime, timezone, timedelta
 
-          echo "========================================"
-          echo "🤖 BENDER IS WAKING UP"
-          echo "Scan mode: $SCAN_MODE"
-          echo "========================================"
+          token = os.environ["TELEGRAM_BOT_TOKEN"]
+          chat_id = os.environ["TELEGRAM_CHAT_ID"]
 
-          python scheduled_scan.py
+          ph_time = datetime.now(
+              timezone(timedelta(hours=8))
+          ).strftime("%Y-%m-%d %I:%M:%S %p")
 
-          echo "========================================"
-          echo "✅ BENDER FINISHED SUCCESSFULLY"
-          echo "========================================"
+          message = (
+              "🧪 BENDER CRON TEST\n\n"
+              "✅ GitHub automatic scheduler woke up by itself.\n"
+              f"🕒 Philippine Time: {ph_time}\n\n"
+              "Walang manual Run Workflow na pinindot para sa message na ito."
+          )
+
+          url = f"https://api.telegram.org/bot{token}/sendMessage"
+
+          r = requests.post(
+              url,
+              json={
+                  "chat_id": chat_id,
+                  "text": message
+              },
+              timeout=20
+          )
+
+          r.raise_for_status()
+
+          print("Telegram cron test sent successfully.")
+          PY
