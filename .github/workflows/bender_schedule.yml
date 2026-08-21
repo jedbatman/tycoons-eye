@@ -1,6 +1,11 @@
 name: Bender Scheduled Alerts
 
+permissions:
+  contents: read
+
 on:
+  # MANUAL TEST:
+  # GitHub > Actions > Bender Scheduled Alerts > Run workflow
   workflow_dispatch:
     inputs:
       scan_mode:
@@ -12,49 +17,100 @@ on:
           - MORNING
           - NIGHT
 
+  # ============================================================
+  # AUTOMATIC SCHEDULE
+  # Philippines = UTC + 8
+  #
+  # 00:17 UTC = 8:17 AM Philippines
+  # 14:17 UTC = 10:17 PM Philippines
+  # ============================================================
   schedule:
-    # 8:10 AM Philippines = 00:10 UTC
-    - cron: "10 0 * * *"
+    # ☀️ MAIN DAILY REPORT — 8:17 AM PHT
+    - cron: "17 0 * * *"
 
-    # 10:00 PM Philippines = 14:00 UTC
-    - cron: "0 14 * * *"
+    # 🌙 NIGHT RISK CHECK — 10:17 PM PHT
+    - cron: "17 14 * * *"
 
 jobs:
   bender-scan:
+    name: Run Bender Market Scanner
+
     runs-on: ubuntu-latest
+
     timeout-minutes: 15
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
+      # ========================================================
+      # 1. KUNIN ANG REPOSITORY FILES
+      # ========================================================
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # ========================================================
+      # 2. IHANDA ANG PYTHON
+      # ========================================================
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
+      # ========================================================
+      # 3. INSTALL KAILANGANG LIBRARIES
+      # ========================================================
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install yfinance pandas numpy requests
 
+      # ========================================================
+      # 4. ALAMIN KUNG MORNING O NIGHT SCAN
+      # ========================================================
       - name: Determine scan mode
         shell: bash
         run: |
+          echo "Event name: ${{ github.event_name }}"
+          echo "Schedule trigger: ${{ github.event.schedule }}"
+
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+
+            echo "Manual GitHub run detected."
             echo "SCAN_MODE=${{ inputs.scan_mode }}" >> "$GITHUB_ENV"
-          elif [ "${{ github.event.schedule }}" = "10 0 * * *" ]; then
+
+          elif [ "${{ github.event.schedule }}" = "17 0 * * *" ]; then
+
+            echo "Automatic 8:17 AM MORNING scan detected."
             echo "SCAN_MODE=MORNING" >> "$GITHUB_ENV"
-          elif [ "${{ github.event.schedule }}" = "0 14 * * *" ]; then
+
+          elif [ "${{ github.event.schedule }}" = "17 14 * * *" ]; then
+
+            echo "Automatic 10:17 PM NIGHT scan detected."
             echo "SCAN_MODE=NIGHT" >> "$GITHUB_ENV"
+
           else
+
+            echo "Unknown trigger. Using MANUAL mode."
             echo "SCAN_MODE=MANUAL" >> "$GITHUB_ENV"
+
           fi
 
-      - name: Run Bender
+      # ========================================================
+      # 5. PATUBUHIN SI BENDER
+      # ========================================================
+      - name: Run Bender scanner
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           CAPITAL_PHP: "560000"
+
         run: |
+          echo "========================================"
+          echo "🤖 BENDER IS WAKING UP"
+          echo "Scan mode: $SCAN_MODE"
+          echo "========================================"
+
           python scheduled_scan.py
+
+          echo "========================================"
+          echo "✅ BENDER FINISHED SUCCESSFULLY"
+          echo "========================================"
